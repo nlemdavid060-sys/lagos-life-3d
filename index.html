@@ -1,0 +1,320 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>LAGOS LIFE 3D</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden;background:#87ceeb;font-family:Arial;color:white}
+canvas{display:block}
+#hud{position:absolute;top:12px;left:10px;background:#071b30dd;padding:12px;border-radius:12px;z-index:5}
+#hud h2{color:#26d9ff;margin:0 0 8px;font-size:19px}
+#hud p{margin:5px 0;font-size:13px}
+#buttons{position:absolute;right:10px;top:12px;display:grid;gap:8px;z-index:5}
+button{border:0;border-radius:12px;background:#092c48;color:white;padding:13px;font-weight:bold}
+#controls{position:absolute;bottom:18px;left:12px;display:grid;grid-template-columns:55px 55px 55px;gap:5px;z-index:5}
+#controls button{height:55px;font-size:21px;padding:0;background:#092c48dd}
+#actions{position:absolute;bottom:25px;right:12px;display:grid;gap:10px;z-index:5}
+#actions button{background:#087a43}
+#message{position:absolute;bottom:115px;left:50%;transform:translateX(-50%);background:#071b30dd;padding:10px;border-radius:10px;z-index:5;text-align:center;font-size:12px;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<div id="hud">
+<h2>LAGOS LIFE 3D</h2>
+<p>💰 MONEY: ₦50,000</p>
+<p id="mode">MODE: WALKING</p>
+<p id="speed">SPEED: 0 KM/H</p>
+</div>
+
+<div id="buttons">
+<button onclick="toggleNight()">🌙 DAY / NIGHT</button>
+<button onclick="resetGame()">📍 RESET</button>
+</div>
+
+<div id="controls">
+<div></div><button data-dir="up">⬆️</button><div></div>
+<button data-dir="left">⬅️</button>
+<button data-dir="down">⬇️</button>
+<button data-dir="right">➡️</button>
+</div>
+
+<div id="actions">
+<button onclick="toggleCar()">🚗 ENTER / EXIT</button>
+<button onclick="jump()">⬆️ JUMP</button>
+</div>
+
+<div id="message">Welcome to Lagos Life 3D!</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+
+if(!window.THREE){
+document.getElementById("message").textContent="Game could not load. Check your internet connection.";
+return;
+}
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x83c9ef);
+scene.fog=new THREE.Fog(0x83c9ef,100,280);
+
+const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,0.1,500);
+
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+renderer.shadowMap.enabled=true;
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x536044,1.5));
+
+const sun=new THREE.DirectionalLight(0xffffff,1.5);
+sun.position.set(-40,80,40);
+sun.castShadow=true;
+scene.add(sun);
+
+const mat=(color)=>new THREE.MeshStandardMaterial({color});
+
+function block(w,h,d,material,x,y,z){
+const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);
+mesh.position.set(x,y,z);
+mesh.castShadow=true;
+mesh.receiveShadow=true;
+scene.add(mesh);
+return mesh;
+}
+
+// Ground and roads
+block(400,1,400,mat(0x39844a),0,-0.7,0);
+block(18,0.15,400,mat(0x292d32),0,0,0);
+block(400,0.15,18,mat(0x292d32),0,0,0);
+
+for(let z=-190;z<200;z+=18){
+block(0.3,0.03,7,mat(0xffffff),0,0.1,z);
+}
+for(let x=-190;x<200;x+=18){
+block(7,0.03,0.3,mat(0xffffff),x,0.1,0);
+}
+
+// Buildings
+const colors=[0xe3d8c5,0xc2d3e0,0xc6b9a8,0x9da9b6,0xd9d9d9];
+
+for(let i=0;i<65;i++){
+const x=(Math.random()-0.5)*200;
+const z=(Math.random()-0.5)*200;
+if(Math.abs(x)<15||Math.abs(z)<15)continue;
+const w=8+Math.random()*10;
+const d=8+Math.random()*10;
+const h=10+Math.random()*28;
+block(w,h,d,mat(colors[i%colors.length]),x,h/2,z);
+}
+
+// Palm trees
+function palm(x,z){
+block(0.6,7,0.6,mat(0x80512c),x,3.5,z);
+const leafmat=mat(0x12833b);
+for(let i=0;i<6;i++){
+const leaf=block(1,0.2,5,leafmat,x,7,z);
+leaf.rotation.y=i*Math.PI/3;
+leaf.rotation.x=0.25;
+}
+}
+for(let i=-180;i<=180;i+=30){
+palm(-15,i);
+palm(15,i);
+}
+
+// Optional background picture
+const loader=new THREE.TextureLoader();
+loader.load("images/lagos-background.jpg",function(texture){
+texture.colorSpace=THREE.SRGBColorSpace;
+scene.background=texture;
+},undefined,function(){});
+
+// Player
+const player=new THREE.Group();
+const skin=mat(0x895c3d);
+const blue=mat(0x075bd1);
+const black=mat(0x171717);
+
+const torso=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.7,1.6,12),blue);
+torso.position.y=1.5;
+player.add(torso);
+
+const head=new THREE.Mesh(new THREE.SphereGeometry(0.45,16,12),skin);
+head.position.y=2.65;
+player.add(head);
+
+const hair=new THREE.Mesh(new THREE.SphereGeometry(0.47,16,8,0,Math.PI*2,0,Math.PI/2),black);
+hair.position.y=2.85;
+player.add(hair);
+
+for(let side of [-1,1]){
+const leg=new THREE.Mesh(new THREE.BoxGeometry(0.35,0.9,0.4),black);
+leg.position.set(side*0.3,0.45,0);
+player.add(leg);
+}
+scene.add(player);
+player.position.set(0,0,25);
+
+// Bugatti-style car
+const car=new THREE.Group();
+const carpaint=new THREE.MeshStandardMaterial({color:0x004cff,metalness:0.6,roughness:0.25});
+const windowmat=mat(0x65b8df);
+
+const chassis=new THREE.Mesh(new THREE.BoxGeometry(4,1,7),carpaint);
+chassis.position.y=1;
+car.add(chassis);
+
+const cabin=new THREE.Mesh(new THREE.BoxGeometry(3,1.1,3),windowmat);
+cabin.position.y=2;
+car.add(cabin);
+
+for(let x of [-2,2]){
+for(let z of [-2.2,2.2]){
+const wheel=new THREE.Mesh(new THREE.CylinderGeometry(0.65,0.65,0.4,16),black);
+wheel.rotation.z=Math.PI/2;
+wheel.position.set(x,0.65,z);
+car.add(wheel);
+}
+}
+scene.add(car);
+car.position.set(7,0,20);
+
+// Danfo buses
+const buses=[];
+for(let i=0;i<4;i++){
+const bus=new THREE.Group();
+const yellow=mat(0xffc400);
+const body=new THREE.Mesh(new THREE.BoxGeometry(3,2,6),yellow);
+body.position.y=1.2;
+bus.add(body);
+scene.add(bus);
+bus.position.set(4,0,-i*40-30);
+buses.push(bus);
+}
+
+// Background image fallback
+const keys={up:false,down:false,left:false,right:false};
+let driving=false;
+let night=false;
+let speed=0;
+
+document.querySelectorAll("[data-dir]").forEach(btn=>{
+const dir=btn.dataset.dir;
+btn.addEventListener("pointerdown",e=>{
+e.preventDefault();
+keys[dir]=true;
+});
+["pointerup","pointerleave","pointercancel"].forEach(event=>{
+btn.addEventListener(event,()=>keys[dir]=false);
+});
+});
+
+window.addEventListener("keydown",e=>{
+if(e.key==="ArrowUp"||e.key==="w")keys.up=true;
+if(e.key==="ArrowDown"||e.key==="s")keys.down=true;
+if(e.key==="ArrowLeft"||e.key==="a")keys.left=true;
+if(e.key==="ArrowRight"||e.key==="d")keys.right=true;
+});
+
+window.addEventListener("keyup",e=>{
+if(e.key==="ArrowUp"||e.key==="w")keys.up=false;
+if(e.key==="ArrowDown"||e.key==="s")keys.down=false;
+if(e.key==="ArrowLeft"||e.key==="a")keys.left=false;
+if(e.key==="ArrowRight"||e.key==="d")keys.right=false;
+});
+
+window.toggleCar=function(){
+if(!driving&&player.position.distanceTo(car.position)<12){
+driving=true;
+player.visible=false;
+say("You entered your car!");
+}else if(driving){
+driving=false;
+player.visible=true;
+player.position.copy(car.position);
+player.position.x+=5;
+say("You exited your car!");
+}else{
+say("Walk closer to your car!");
+}
+document.getElementById("mode").textContent="MODE: "+(driving?"DRIVING":"WALKING");
+};
+
+window.toggleNight=function(){
+night=!night;
+scene.background=new THREE.Color(night?0x101c38:0x83c9ef);
+scene.fog.color.copy(scene.background);
+sun.intensity=night?0.25:1.5;
+say(night?"Night time in Lagos!":"Daytime in Lagos!");
+};
+
+window.jump=function(){
+if(!driving){
+player.position.y=2.5;
+setTimeout(()=>player.position.y=0,350);
+}
+};
+
+window.resetGame=function(){
+driving=false;
+player.visible=true;
+player.position.set(0,0,25);
+car.position.set(7,0,20);
+document.getElementById("mode").textContent="MODE: WALKING";
+say("Welcome back!");
+};
+
+function say(message){
+document.getElementById("message").textContent=message;
+}
+
+function animate(){
+requestAnimationFrame(animate);
+
+if(driving){
+speed=keys.up?0.55:keys.down?-0.3:0;
+if(keys.left)car.rotation.y+=0.035;
+if(keys.right)car.rotation.y-=0.035;
+car.translateZ(-speed);
+}else{
+speed=keys.up?0.35:keys.down?-0.35:0;
+if(keys.left)player.rotation.y+=0.045;
+if(keys.right)player.rotation.y-=0.045;
+player.translateZ(-speed);
+}
+
+buses.forEach(bus=>{
+bus.position.z+=0.2;
+if(bus.position.z>100)bus.position.z=-180;
+});
+
+const target=driving?car:player;
+const offset=new THREE.Vector3(0,8,14);
+offset.applyAxisAngle(new THREE.Vector3(0,1,0),target.rotation.y);
+camera.position.lerp(target.position.clone().add(offset),0.08);
+camera.lookAt(target.position.x,target.position.y+1,target.position.z);
+
+document.getElementById("speed").textContent="SPEED: "+Math.round(Math.abs(speed)*100)+" KM/H";
+
+renderer.render(scene,camera);
+}
+
+camera.position.set(0,10,40);
+animate();
+
+window.addEventListener("resize",()=>{
+camera.aspect=innerWidth/innerHeight;
+camera.updateProjectionMatrix();
+renderer.setSize(innerWidth,innerHeight);
+});
+
+})();
+</script>
+</body>
+</html>
