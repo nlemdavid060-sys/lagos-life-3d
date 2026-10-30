@@ -1,0 +1,405 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>LAGOS LIFE 3D - SUPER CAR UPDATE</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden;background:#80b9d8;font-family:Arial}
+canvas{display:block}
+#top{position:fixed;top:8px;left:8px;right:8px;display:flex;justify-content:space-between;gap:5px;z-index:5;pointer-events:none}
+.panel{background:#101a24dd;color:white;padding:9px 12px;border-radius:12px;font-size:12px}
+#money{color:#65ff9b;font-weight:bold}
+#menu{position:fixed;top:55px;left:50%;transform:translateX(-50%);width:min(92%,350px);max-height:72vh;overflow:auto;background:#101a24f5;color:white;border-radius:15px;padding:14px;display:none;z-index:10}
+#menu h2{margin:0 0 10px;color:#69ffac}
+#menu p{font-size:12px;line-height:1.5}
+#menu button{display:block;width:100%;margin:7px 0;padding:12px;border:0;border-radius:9px;background:#245d83;color:white;font-weight:bold}
+#menu button:disabled{background:#555;color:#ccc}
+#close{background:#a33232!important}
+#controls{position:fixed;bottom:12px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:end;z-index:6;pointer-events:none}
+.pad{display:grid;grid-template-columns:repeat(3,47px);grid-template-rows:repeat(2,43px);gap:4px;pointer-events:auto}
+.ctrl{border:0;border-radius:12px;background:#101a24cc;color:white;font-size:18px;touch-action:none}
+#actions{display:flex;flex-direction:column;gap:6px;pointer-events:auto}
+#actions button{width:75px;height:39px;font-size:11px}
+#hint{position:fixed;bottom:118px;left:50%;transform:translateX(-50%);color:white;background:#101a24cc;padding:8px 12px;border-radius:10px;font-size:11px;white-space:nowrap;z-index:4}
+</style>
+</head>
+<body>
+<div id="top">
+ <div class="panel">LAGOS LIFE 3D<br><span id="location">Lagos</span></div>
+ <div class="panel">WALLET<br><span id="money">₦1,000,000,000,000</span></div>
+</div>
+<div id="menu"></div>
+<div id="hint">Explore Lagos • Visit the car dealership</div>
+<div id="controls">
+ <div class="pad">
+  <button class="ctrl" style="grid-column:2" data-key="forward">▲</button>
+  <button class="ctrl" data-key="left">◀</button>
+  <button class="ctrl" data-key="back">▼</button>
+  <button class="ctrl" data-key="right">▶</button>
+ </div>
+ <div id="actions">
+  <button class="ctrl" id="interact">ENTER</button>
+  <button class="ctrl" id="drive">DRIVE</button>
+  <button class="ctrl" id="day">DAY/NIGHT</button>
+  <button class="ctrl" id="jump">JUMP</button>
+ </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(()=>{
+if(!window.THREE){
+ document.body.innerHTML='<h2 style="color:white;padding:25px">3D engine unavailable. Check your internet and refresh.</h2>';
+ return;
+}
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x8bc8ed);
+scene.fog=new THREE.Fog(0x8bc8ed,100,270);
+const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,500);
+const renderer=new THREE.WebGLRenderer({antialias:false});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x52634c,2));
+const sun=new THREE.DirectionalLight(0xffffff,2);
+sun.position.set(-40,80,30);
+scene.add(sun);
+
+const material=c=>new THREE.MeshLambertMaterial({color:c});
+function cube(x,y,z,w,h,d,color,parent=scene){
+ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material(color));
+ o.position.set(x,y,z);
+ parent.add(o);
+ return o;
+}
+
+cube(0,-.3,0,300,.5,300,0x438a48);
+const road=material(0x343b43);
+for(let z=-100;z<=100;z+=50)cube(0,.01,z,300,.04,10,0x343b43);
+for(let x=-100;x<=100;x+=50)cube(x,.02,0,10,.04,300,0x343b43);
+
+function building(x,z,w,h,d,color){
+ const g=new THREE.Group();
+ g.position.set(x,0,z);
+ scene.add(g);
+ cube(0,h/2,0,w,h,d,color,g);
+ for(let y=2;y<h-1;y+=3){
+  for(let xx=-w/2+1;xx<w/2;xx+=3){
+   cube(xx,y,d/2+.03,1.1,1.3,.08,0x8dd6ed,g);
+  }
+ }
+ return g;
+}
+
+for(let i=0;i<38;i++){
+ const x=(Math.random()-.5)*190,z=(Math.random()-.5)*190;
+ if(Math.abs(x)<23&&Math.abs(z)<23)continue;
+ building(x,z,8+Math.random()*8,7+Math.random()*18,8+Math.random()*8,
+ [0xd6b28a,0xd2d7df,0xe4c5a1,0xc8d8c8][i%4]);
+}
+
+building(-12,-18,20,17,17,0xe6d8b9);
+building(25,-25,17,25,13,0x8ab8d5);
+building(-35,25,24,13,18,0xd8dce5);
+building(38,30,18,12,16,0xd9b76c);
+building(-25,-45,13,9,12,0xd9a56e);
+building(20,45,22,10,17,0xc9a47d);
+
+cube(-12,.12,-6,10,.18,5,0x16bde8);
+
+function tree(x,z){
+ const g=new THREE.Group();
+ g.position.set(x,0,z);
+ scene.add(g);
+ cube(0,2,0,.8,4,.8,0x754421,g);
+ const crown=new THREE.Mesh(new THREE.SphereGeometry(2.7,7,6),material(0x16843d));
+ crown.position.y=5;
+ g.add(crown);
+}
+for(let i=0;i<45;i++)tree((Math.random()-.5)*180,(Math.random()-.5)*180);
+
+// Player
+const player=new THREE.Group();
+scene.add(player);
+const body=cube(0,1.4,0,1,1.5,.55,0x2255cc,player);
+const head=new THREE.Mesh(new THREE.SphereGeometry(.42,10,8),material(0xc88a61));
+head.position.y=2.45;
+player.add(head);
+player.position.set(0,0,5);
+
+// Sports car dealership
+const catalog=[
+ {name:"Bugatti Chiron",price:0,color:0x092b80},
+ {name:"Lamborghini Aventador",price:180000000,color:0xd2c900},
+ {name:"Ferrari 488",price:150000000,color:0xaa1111},
+ {name:"McLaren 720S",price:170000000,color:0xff7b18},
+ {name:"Porsche 911",price:95000000,color:0xffffff},
+ {name:"Nissan GT-R",price:75000000,color:0x222222},
+ {name:"Audi R8",price:110000000,color:0x13a5a5},
+ {name:"Chevrolet Corvette",price:85000000,color:0x8c1830},
+ {name:"Mercedes-AMG GT",price:125000000,color:0xaaaaaa}
+];
+
+function makeCar(data,x,z){
+ const g=new THREE.Group();
+ g.position.set(x,0,z);
+ scene.add(g);
+ cube(0,.65,0,4,.8,7,data.color,g);
+ cube(0,1.35,-.5,3,1.1,3.3,0x8ed3ed,g);
+ cube(0,.38,3.35,2,.3,.25,0xffffff,g);
+ for(const xx of [-1.8,1.8]){
+  for(const zz of [-2.2,2.2]){
+   const wheel=new THREE.Mesh(new THREE.CylinderGeometry(.65,.65,.35,12),material(0x171717));
+   wheel.rotation.z=Math.PI/2;
+   wheel.position.set(xx,.55,zz);
+   g.add(wheel);
+  }
+ }
+ return g;
+}
+
+let money=1000000000000;
+let owned=[0];
+let selected=0;
+let carMode=false;
+let night=false;
+let destination="Lagos";
+let completed={};
+
+try{
+ const save=JSON.parse(localStorage.getItem("lagosSuperSave")||"{}");
+ if(save.money!==undefined)money=save.money;
+ if(Array.isArray(save.owned))owned=save.owned;
+ if(save.selected!==undefined)selected=save.selected;
+ if(save.completed)completed=save.completed;
+}catch(e){}
+
+if(!owned.includes(0))owned.unshift(0);
+if(!owned.includes(selected))selected=0;
+
+const displayCars=[];
+catalog.forEach((data,i)=>{
+ const row=Math.floor(i/3);
+ const col=i%3;
+ const car=makeCar(data,27+(col-1)*9,34+row*10);
+ displayCars.push(car);
+});
+
+const danfos=[];
+for(let i=0;i<5;i++)danfos.push(makeCar({color:0xe9b923},-30+i*12,65));
+
+const plane=new THREE.Group();
+scene.add(plane);
+cube(0,0,0,2,1,8,0xffffff,plane);
+cube(0,0,0,18,.18,2,0xffffff,plane);
+plane.position.set(-70,35,-65);
+
+function saveGame(){
+ try{
+  localStorage.setItem("lagosSuperSave",JSON.stringify({
+   money,owned,selected,completed
+  }));
+ }catch(e){}
+}
+function wallet(){
+ document.getElementById("money").textContent="₦"+money.toLocaleString("en-NG");
+ saveGame();
+}
+wallet();
+
+const menu=document.getElementById("menu");
+function closeMenu(){menu.style.display="none";}
+function openMenu(title,items){
+ menu.innerHTML="<h2>"+title+"</h2>"+items.map((a,i)=>
+  '<button data-choice="'+i+'" '+(a.disabled?'disabled':'')+'>'+a.label+'</button>'
+ ).join("")+'<button id="close">CLOSE</button>';
+ menu.style.display="block";
+ menu.querySelectorAll("[data-choice]").forEach(btn=>{
+  btn.onclick=()=>items[+btn.dataset.choice].action();
+ });
+ document.getElementById("close").onclick=closeMenu;
+}
+function notice(t){
+ openMenu("LAGOS LIFE 3D",[{label:t,action:closeMenu}]);
+}
+
+function dealership(){
+ const options=catalog.map((car,i)=>{
+  const has=owned.includes(i);
+  return {
+   label:car.name+" — "+(has?(selected===i?"CURRENT CAR":"OWNED"):"₦"+car.price.toLocaleString("en-NG")+" — BUY"),
+   disabled:false,
+   action:()=>{
+    if(has){
+     selected=i;
+     closeMenu();
+     notice(car.name+" selected! Tap DRIVE to use it.");
+     saveGame();
+    }else if(money>=car.price){
+     money-=car.price;
+     owned.push(i);
+     selected=i;
+     wallet();
+     closeMenu();
+     notice("Congratulations! You bought the "+car.name+"!");
+    }else{
+     notice("You don't have enough game money for this car.");
+    }
+   }
+  };
+ });
+ openMenu("SUPER CAR DEALERSHIP",options);
+}
+
+function invest(cost,profit){
+ if(money<cost){notice("Not enough game money.");return;}
+ money=money-cost+profit;
+ wallet();
+ notice("Investment completed! Virtual game money added.");
+}
+
+function near(x,z,d=15){
+ return Math.hypot(player.position.x-x,player.position.z-z)<d;
+}
+
+function interact(){
+ if(near(20,45)||near(27,34)||near(27,44)||near(27,54)){
+  dealership();
+ }else if(near(-12,-18)){
+  notice("Welcome to your mansion! Your private home in Lagos.");
+ }else if(near(25,-25)){
+  openMenu("HOTEL",[
+   {label:"Book a room — ₦2,000,000",action:()=>{
+    if(money>=2000000){money-=2000000;wallet();notice("Hotel room booked!");}
+    else notice("Not enough game money.");
+   }},
+   {label:"Visit hotel",action:()=>{completed.hotel=true;saveGame();notice("Hotel visit complete!");}}
+  ]);
+ }else if(near(-35,25)){
+  openMenu("LAGOS AIRPORT",["Abuja","Kano","Oyo","Ogun","Rivers","Enugu","Delta","Kaduna"].map(s=>({
+   label:"Travel to "+s,
+   action:()=>{
+    destination=s;
+    player.position.set(0,0,5);
+    document.getElementById("location").textContent=s;
+    completed.airport=true;
+    saveGame();
+    closeMenu();
+   }
+  })));
+ }else if(near(38,30)){
+  openMenu("INVESTMENT CENTRE",[
+   {label:"Small Business — ₦10M → ₦12M",action:()=>invest(10000000,12000000)},
+   {label:"Shopping Mall — ₦50M → ₦60M",action:()=>invest(50000000,60000000)},
+   {label:"Hotel Business — ₦100M → ₦125M",action:()=>invest(100000000,125000000)},
+   {label:"Factory — ₦200M → ₦250M",action:()=>invest(200000000,250000000)}
+  ]);
+ }else if(near(-25,-45)){
+  openMenu("CLOTHING SHOP",[
+   {label:"Blue outfit",action:()=>{body.material=material(0x2255cc);closeMenu();}},
+   {label:"Red outfit",action:()=>{body.material=material(0xcc2222);closeMenu();}},
+   {label:"Green outfit",action:()=>{body.material=material(0x229955);closeMenu();}},
+   {label:"Purple outfit",action:()=>{body.material=material(0x8833bb);closeMenu();}}
+  ]);
+ }else{
+  openMenu("MISSIONS",[
+   {label:"Explore Lagos — earn ₦5M",action:()=>{
+    if(!completed.explore){money+=5000000;completed.explore=true;wallet();}
+    notice("City mission completed!");
+   }},
+   {label:"Visit airport",action:()=>{player.position.set(-35,0,25);closeMenu();}},
+   {label:"Visit hotel",action:()=>{player.position.set(25,0,-25);closeMenu();}},
+   {label:"Visit dealership",action:()=>{player.position.set(20,0,45);closeMenu();}}
+  ]);
+ }
+}
+
+const keys={};
+document.querySelectorAll("[data-key]").forEach(btn=>{
+ const k=btn.dataset.key;
+ btn.addEventListener("pointerdown",e=>{e.preventDefault();keys[k]=true;});
+ ["pointerup","pointerleave","pointercancel"].forEach(ev=>{
+  btn.addEventListener(ev,()=>keys[k]=false);
+ });
+});
+
+document.getElementById("interact").onclick=interact;
+
+document.getElementById("drive").onclick=()=>{
+ if(!owned.includes(selected)){notice("Buy a car first!");return;}
+ carMode=!carMode;
+ if(carMode){
+  displayCars[selected].position.copy(player.position);
+  notice("Driving "+catalog[selected].name);
+ }else{
+  player.position.copy(displayCars[selected].position);
+ }
+};
+
+document.getElementById("jump").onclick=()=>{
+ if(!carMode){
+  player.position.y=2;
+  setTimeout(()=>player.position.y=0,350);
+ }
+};
+
+document.getElementById("day").onclick=()=>{
+ night=!night;
+ scene.background=new THREE.Color(night?0x101b3a:0x8bc8ed);
+ scene.fog.color.copy(scene.background);
+ sun.intensity=night?.35:2;
+};
+
+let last=0;
+function animate(t){
+ requestAnimationFrame(animate);
+ const dt=Math.min((t-last)/1000,.05);
+ last=t;
+
+ const target=carMode?displayCars[selected]:player;
+ const speed=carMode?25:9;
+ let dx=0,dz=0;
+ if(keys.forward)dz-=1;
+ if(keys.back)dz+=1;
+ if(keys.left)dx-=1;
+ if(keys.right)dx+=1;
+ const len=Math.hypot(dx,dz)||1;
+ dx=dx/len*speed*dt;
+ dz=dz/len*speed*dt;
+ target.position.x+=dx;
+ target.position.z+=dz;
+ if(dx||dz)target.rotation.y=Math.atan2(dx,dz);
+
+ if(carMode)player.position.copy(target.position);
+
+ plane.position.x+=.12;
+ if(plane.position.x>100)plane.position.x=-100;
+
+ danfos.forEach((d,i)=>{
+  d.position.x+=.035*(i%2?1:-1);
+  if(Math.abs(d.position.x)>100)d.position.x=-d.position.x;
+ });
+
+ const focus=carMode?displayCars[selected]:player;
+ camera.position.lerp(
+  new THREE.Vector3(focus.position.x,focus.position.y+9,focus.position.z+16),.08
+ );
+ camera.lookAt(focus.position.x,focus.position.y+1,focus.position.z);
+ renderer.render(scene,camera);
+}
+
+requestAnimationFrame(animate);
+addEventListener("resize",()=>{
+ camera.aspect=innerWidth/innerHeight;
+ camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth,innerHeight);
+});
+})();
+</script>
+</body>
+</html>
