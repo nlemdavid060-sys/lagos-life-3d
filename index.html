@@ -1,0 +1,278 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>LAGOS LIFE 3D</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden;background:#80b9d8;font-family:Arial,sans-serif}
+canvas{display:block}
+#top{position:fixed;top:8px;left:8px;right:8px;display:flex;justify-content:space-between;gap:6px;z-index:5;pointer-events:none}
+.panel{background:#101a24dd;color:white;padding:9px 12px;border-radius:12px;font-size:12px}
+#money{color:#65ff9b;font-weight:bold}
+#menu{position:fixed;top:60px;left:50%;transform:translateX(-50%);width:min(90%,340px);max-height:60vh;overflow:auto;background:#101a24f2;color:white;border-radius:15px;padding:15px;display:none;z-index:10}
+#menu h2{margin:0 0 10px;color:#69ffac}
+#menu button{display:block;width:100%;margin:7px 0;padding:12px;border:0;border-radius:9px;background:#245d83;color:white;font-weight:bold}
+#close{background:#a33232!important}
+#controls{position:fixed;bottom:15px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:end;z-index:6;pointer-events:none}
+.pad{display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(2,45px);gap:4px;pointer-events:auto}
+.ctrl{border:0;border-radius:12px;background:#101a24bb;color:white;font-size:19px;touch-action:none}
+#actions{display:flex;flex-direction:column;gap:7px;pointer-events:auto}
+#actions button{width:76px;height:42px;font-size:12px}
+#hint{position:fixed;bottom:125px;left:50%;transform:translateX(-50%);color:white;background:#101a24bb;padding:8px 12px;border-radius:10px;font-size:11px;white-space:nowrap;z-index:4}
+</style>
+</head>
+<body>
+<div id="top">
+ <div class="panel">LAGOS LIFE 3D<br><span id="location">Lagos</span></div>
+ <div class="panel">WALLET<br><span id="money">₦1,000,000,000,000</span></div>
+</div>
+<div id="menu"></div>
+<div id="hint">Explore the city and visit the buildings</div>
+<div id="controls">
+ <div class="pad">
+  <button class="ctrl" style="grid-column:2" data-key="forward">▲</button>
+  <button class="ctrl" data-key="left">◀</button>
+  <button class="ctrl" data-key="back">▼</button>
+  <button class="ctrl" data-key="right">▶</button>
+ </div>
+ <div id="actions">
+  <button class="ctrl" id="interact">ENTER</button>
+  <button class="ctrl" id="drive">DRIVE</button>
+  <button class="ctrl" id="jump">JUMP</button>
+  <button class="ctrl" id="day">DAY/NIGHT</button>
+ </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(()=>{
+if(!window.THREE){
+ document.body.innerHTML='<div style="color:white;padding:30px">The 3D engine could not load. Check your internet connection and refresh.</div>';
+ return;
+}
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x8bc8ed);
+scene.fog=new THREE.Fog(0x8bc8ed,90,260);
+const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,500);
+const renderer=new THREE.WebGLRenderer({antialias:false});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x52634c,2));
+const sun=new THREE.DirectionalLight(0xffffff,2);
+sun.position.set(-40,80,30);scene.add(sun);
+
+const mat=(color)=>new THREE.MeshLambertMaterial({color});
+const green=mat(0x438a48),road=mat(0x343b43),white=mat(0xffffff);
+function cube(x,y,z,w,h,d,m,parent=scene){
+ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
+ o.position.set(x,y,z);parent.add(o);return o;
+}
+function ground(){
+ cube(0,-.3,0,300,.5,300,green);
+ for(let z=-100;z<=100;z+=50)cube(0,.01,z,300,.04,10,road);
+ for(let x=-100;x<=100;x+=50)cube(x,.02,0,10,.04,300,road);
+}
+ground();
+
+const buildings=[];
+function building(x,z,w,h,d,color,label){
+ const b=new THREE.Group();b.position.set(x,0,z);scene.add(b);
+ cube(0,h/2,0,w,h,d,mat(color),b);
+ for(let y=2;y<h-1;y+=3){
+  for(let xx=-w/2+1;xx<w/2;xx+=3){
+   cube(xx,y,d/2+.03,1.1,1.3,.08,mat(0x8dd6ed),b);
+  }
+ }
+ cube(0,h+.3,0,w*.6,.5,d*.6,mat(0x444444),b);
+ buildings.push({x,z,label,group:b});
+}
+for(let i=0;i<35;i++){
+ const x=(Math.random()-.5)*190,z=(Math.random()-.5)*190;
+ if(Math.abs(x)<22&&Math.abs(z)<22)continue;
+ building(x,z,8+Math.random()*8,7+Math.random()*18,8+Math.random()*8,
+ [0xd6b28a,0xd2d7df,0xe4c5a1,0xc8d8c8][i%4],"Building");
+}
+building(-12,-18,20,17,17,0xe6d8b9,"YOUR MANSION");
+building(25,-25,17,25,13,0x8ab8d5,"HOTEL");
+building(-35,25,24,13,18,0xd8dce5,"AIRPORT");
+building(38,30,14,12,12,0xd9b76c,"INVESTMENT CENTRE");
+building(-25,-45,13,9,12,0xd9a56e,"CLOTHING SHOP");
+building(20,45,13,9,12,0xc9a47d,"GARAGE");
+
+const pool=cube(-12,.12,-6,10,.18,5,mat(0x16bde8));
+const mansion=cube(-12,1,-18,20,17,17,mat(0xe6d8b9));
+cube(-12,9.7,-18,22,1,19,mat(0x8a4936));
+const trees=[];
+function tree(x,z){
+ const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
+ cube(0,2,0,.8,4,.8,mat(0x754421),g);
+ const crown=new THREE.Mesh(new THREE.SphereGeometry(2.7,7,6),mat(0x16843d));
+ crown.position.y=5;g.add(crown);
+ trees.push(g);
+}
+for(let i=0;i<45;i++)tree((Math.random()-.5)*180,(Math.random()-.5)*180);
+
+const player=new THREE.Group();scene.add(player);
+const body=cube(0,1.4,0,1,1.5,.55,mat(0x2255cc),player);
+const head=new THREE.Mesh(new THREE.SphereGeometry(.42,10,8),mat(0xc88a61));
+head.position.y=2.45;player.add(head);
+player.position.set(0,0,5);
+
+function car(x,z,color,name){
+ const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
+ cube(0,.65,0,4,.8,7,mat(color),g);
+ cube(0,1.35,-.5,3,1.1,3.3,mat(0x8ed3ed),g);
+ for(const xx of [-1.8,1.8])for(const zz of [-2.2,2.2]){
+  const wheel=new THREE.Mesh(new THREE.CylinderGeometry(.65,.65,.35,12),mat(0x171717));
+  wheel.rotation.z=Math.PI/2;wheel.position.set(xx,.55,zz);g.add(wheel);
+ }
+ return {group:g,name};
+}
+const cars=[
+ car(8,5,0x092b80,"Bugatti"),
+ car(14,5,0xd2c900,"Lamborghini"),
+ car(20,5,0xaa1111,"Ferrari"),
+ car(26,5,0xaaaaaa,"Mercedes")
+];
+const danfos=[];
+for(let i=0;i<5;i++){
+ const d=car(-30+i*12,50,0xe9b923,"Danfo");
+ danfos.push(d);
+}
+const plane=new THREE.Group();scene.add(plane);
+cube(0,0,0,2,1,8,white,plane);
+cube(0,0,0,18,.18,2,white,plane);
+plane.position.set(-70,35,-65);
+
+let money=1_000_000_000_000;
+let carMode=false,activeCar=0,night=false,inside=false;
+let destination="Lagos";
+let completed={};
+try{
+ const saved=JSON.parse(localStorage.getItem("lagosFastSave")||"{}");
+ if(saved.money!==undefined)money=saved.money;
+ if(saved.completed)completed=saved.completed;
+}catch(e){}
+function save(){
+ try{localStorage.setItem("lagosFastSave",JSON.stringify({money,completed}));}catch(e){}
+}
+function wallet(){
+ document.getElementById("money").textContent="₦"+money.toLocaleString("en-NG");
+ save();
+}
+wallet();
+
+const menu=document.getElementById("menu");
+function openMenu(title,items){
+ menu.innerHTML="<h2>"+title+"</h2>"+items.map((a,i)=>'<button data-choice="'+i+'">'+a.label+'</button>').join("")+'<button id="close">CLOSE</button>';
+ menu.style.display="block";
+ menu.querySelectorAll("[data-choice]").forEach(btn=>{
+  btn.onclick=()=>{items[+btn.dataset.choice].action();};
+ });
+ document.getElementById("close").onclick=()=>menu.style.display="none";
+}
+function closeMenu(){menu.style.display="none";}
+function message(t){
+ openMenu("LAGOS LIFE 3D",[{label:t,action:closeMenu}]);
+}
+function near(x,z,d=14){
+ return Math.hypot(player.position.x-x,player.position.z-z)<d;
+}
+function interact(){
+ if(near(-12,-18)){
+  inside=!inside;message(inside?"Welcome to your mansion!":"You left your mansion.");
+ }else if(near(25,-25)){
+  openMenu("HOTEL",[
+   {label:"Book a room - ₦2,000,000",action:()=>{if(money>=2000000){money-=2000000;wallet();message("Hotel room booked!");}else message("Not enough game money.");}},
+   {label:"Explore hotel",action:()=>{completed.hotel=true;message("You visited the hotel!");}}
+  ]);
+ }else if(near(-35,25)){
+  openMenu("LAGOS AIRPORT",["Abuja","Kano","Oyo","Ogun","Rivers","Enugu","Delta","Kaduna"].map(s=>({label:"Travel to "+s,action:()=>{destination=s;player.position.set(0,0,5);document.getElementById("location").textContent=s;completed.airport=true;closeMenu();}})));
+ }else if(near(38,30)){
+  openMenu("INVESTMENT CENTRE",[
+   {label:"Small Business - ₦10M → ₦12M",action:()=>invest(10000000,12000000)},
+   {label:"Shopping Mall - ₦50M → ₦60M",action:()=>invest(50000000,60000000)},
+   {label:"Hotel Business - ₦100M → ₦125M",action:()=>invest(100000000,125000000)},
+   {label:"Factory - ₦200M → ₦250M",action:()=>invest(200000000,250000000)}
+  ]);
+ }else if(near(-25,-45)){
+  openMenu("CLOTHING SHOP",[
+   {label:"Blue outfit",action:()=>{body.material=mat(0x2255cc);closeMenu();}},
+   {label:"Red outfit",action:()=>{body.material=mat(0xcc2222);closeMenu();}},
+   {label:"Green outfit",action:()=>{body.material=mat(0x229955);closeMenu();}},
+   {label:"Purple outfit",action:()=>{body.material=mat(0x8833bb);closeMenu();}}
+  ]);
+ }else if(near(20,45)){
+  openMenu("GARAGE",cars.map((c,i)=>({label:"Use "+c.name,action:()=>{activeCar=i;player.position.copy(c.group.position);carMode=true;closeMenu();}})));
+ }else{
+  openMenu("CITY",[
+   {label:"Mission: explore the city (+₦5M)",action:()=>{if(!completed.explore){money+=5000000;completed.explore=true;wallet();}message("City mission complete!");}},
+   {label:"Visit the airport",action:()=>{player.position.set(-35,0,25);closeMenu();}},
+   {label:"Visit the hotel",action:()=>{player.position.set(25,0,-25);closeMenu();}},
+   {label:"Open garage",action:()=>{player.position.set(20,0,45);closeMenu();}}
+  ]);
+ }
+}
+function invest(cost,profit){
+ if(money<cost){message("Not enough game money.");return;}
+ money=money-cost+profit;wallet();message("Investment completed! You earned virtual game money.");
+}
+
+const keys={};
+document.querySelectorAll("[data-key]").forEach(btn=>{
+ const k=btn.dataset.key;
+ btn.addEventListener("pointerdown",e=>{e.preventDefault();keys[k]=true;});
+ ["pointerup","pointerleave","pointercancel"].forEach(ev=>btn.addEventListener(ev,()=>keys[k]=false));
+});
+document.getElementById("interact").onclick=interact;
+document.getElementById("drive").onclick=()=>{
+ carMode=!carMode;
+ if(carMode){cars[activeCar].group.position.copy(player.position);}
+};
+document.getElementById("jump").onclick=()=>{player.position.y=2;setTimeout(()=>player.position.y=0,350);};
+document.getElementById("day").onclick=()=>{
+ night=!night;
+ scene.background=new THREE.Color(night?0x101b3a:0x8bc8ed);
+ scene.fog.color.copy(scene.background);
+ sun.intensity=night?.35:2;
+};
+
+let last=0;
+function animate(t){
+ requestAnimationFrame(animate);
+ const dt=Math.min((t-last)/1000,.05);last=t;
+ const speed=carMode?24:9;
+ let dx=0,dz=0;
+ if(keys.forward)dz-=1;if(keys.back)dz+=1;
+ if(keys.left)dx-=1;if(keys.right)dx+=1;
+ const len=Math.hypot(dx,dz)||1;
+ dx=dx/len*speed*dt;dz=dz/len*speed*dt;
+ const target=carMode?cars[activeCar].group:player;
+ target.position.x+=dx;target.position.z+=dz;
+ if(dx||dz)target.rotation.y=Math.atan2(dx,dz);
+ if(carMode){player.position.copy(target.position);}
+ plane.position.x+=.12;
+ if(plane.position.x>100)plane.position.x=-100;
+ danfos.forEach((d,i)=>{
+  d.group.position.x+=.035*(i%2?1:-1);
+  if(Math.abs(d.group.position.x)>100)d.group.position.x=-d.group.position.x;
+ });
+ const focus=carMode?cars[activeCar].group:player;
+ camera.position.lerp(new THREE.Vector3(focus.position.x,focus.position.y+9,focus.position.z+16),.08);
+ camera.lookAt(focus.position.x,focus.position.y+1,focus.position.z);
+ renderer.render(scene,camera);
+}
+requestAnimationFrame(animate);
+addEventListener("resize",()=>{
+ camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+ renderer.setSize(innerWidth,innerHeight);
+});
+})();
+</script>
+</body>
+</html>
