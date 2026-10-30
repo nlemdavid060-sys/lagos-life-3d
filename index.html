@@ -1,0 +1,558 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Lagos Life 3D Update 2</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden;background:#111;color:white;font-family:Arial}
+canvas{display:block}
+button{cursor:pointer}
+#hud{position:fixed;inset:0;pointer-events:none}
+.panel{background:#101923eF;border:1px solid #ffffff35;border-radius:13px;padding:11px}
+#top{position:absolute;top:10px;left:10px}
+#money{color:#6dff9a;font-weight:bold;margin-top:5px}
+#location{font-size:12px;color:#ddd;margin-top:4px}
+#phoneBtn{position:absolute;right:12px;top:12px;pointer-events:auto}
+#phone{display:none;position:absolute;right:12px;top:78px;width:215px;pointer-events:auto}
+#phone h3{margin:4px 0 10px}
+.app,.menuBtn{width:100%;padding:11px;margin:5px 0;border:0;border-radius:8px;background:#254c62;color:white;text-align:left}
+#message{display:none;position:absolute;top:90px;left:50%;transform:translateX(-50%);background:#101923eF;padding:10px 16px;border-radius:20px;font-size:13px;white-space:nowrap}
+#controls{position:absolute;bottom:18px;left:15px;right:15px;display:flex;justify-content:space-between;align-items:end}
+#stick{width:115px;height:115px;border-radius:50%;background:#ffffff24;border:2px solid #ffffff66;position:relative;touch-action:none;pointer-events:auto}
+#knob{position:absolute;width:45px;height:45px;border-radius:50%;background:#ffffffbb;left:33px;top:33px}
+#actions{display:flex;flex-direction:column;align-items:end;gap:8px;pointer-events:auto}
+.action,.driveBtn{border:1px solid #ffffff66;background:#102030eF;color:white;border-radius:50%;width:60px;height:60px;font-size:11px;font-weight:bold;touch-action:none}
+#driveControls{display:none;gap:8px}
+#help{position:absolute;bottom:5px;left:50%;transform:translateX(-50%);font-size:10px;white-space:nowrap;color:#ddd}
+#overlay{display:none;position:absolute;inset:0;background:#0009;align-items:center;justify-content:center;pointer-events:auto}
+#box{width:min(350px,92vw);max-height:82vh;overflow:auto}
+#box h2{margin:3px 0 12px}
+.menuBtn{display:block;text-align:center;background:#176b54}
+#close{background:#693e3e}
+#boxText{font-size:14px;line-height:1.5}
+@media(max-width:500px){#stick{width:105px;height:105px}#knob{left:29px;top:29px}.action,.driveBtn{width:54px;height:54px}}
+</style>
+</head>
+<body>
+<div id="hud">
+ <div id="top" class="panel">
+  <b>🌆 LAGOS LIFE 3D</b>
+  <div id="money">₦5,000,000</div>
+  <div id="location">Lagos, Nigeria</div>
+ </div>
+
+ <button id="phoneBtn" class="action">📱 PHONE</button>
+ <div id="phone" class="panel">
+  <h3>MY PHONE</h3>
+  <button class="app" onclick="openDealership()">🚘 Car Dealership</button>
+  <button class="app" onclick="openAirport()">✈️ Airport / Travel</button>
+  <button class="app" onclick="openProperties()">🏠 Properties</button>
+  <button class="app" onclick="openInvestment()">📈 Investments</button>
+  <button class="app" onclick="showInfo('Map','Explore the expanded city. The airport is on the eastern side of the map.')">🗺️ City Map</button>
+  <button class="app" onclick="showInfo('Bank','Your virtual money is displayed at the top of the screen.')">🏦 Bank</button>
+ </div>
+
+ <div id="message"></div>
+
+ <div id="controls">
+  <div id="stick"><div id="knob"></div></div>
+  <div id="actions">
+   <button id="enterBtn" class="action">ENTER<br>CAR</button>
+   <button id="jumpBtn" class="action">JUMP</button>
+   <div id="driveControls">
+    <button id="brakeBtn" class="driveBtn">BRAKE</button>
+    <button id="gasBtn" class="driveBtn">GAS</button>
+   </div>
+  </div>
+ </div>
+ <div id="help">Joystick: move / steer · ENTER CAR: get in · E: enter or exit · GAS: drive</div>
+
+ <div id="overlay">
+  <div id="box" class="panel">
+   <h2 id="boxTitle">Lagos Life</h2>
+   <div id="boxText"></div>
+   <div id="boxButtons"></div>
+   <button id="close" class="menuBtn">CLOSE</button>
+  </div>
+ </div>
+</div>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}
+</script>
+<script type="module">
+import * as THREE from "three";
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x9bc0d5);
+scene.fog=new THREE.Fog(0x9bc0d5,180,850);
+
+const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,1500);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.15;
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xddeeff,0x59604d,2));
+const sun=new THREE.DirectionalLight(0xffe9c7,3);
+sun.position.set(-100,180,90);
+sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.left=-300;
+sun.shadow.camera.right=300;
+sun.shadow.camera.top=300;
+sun.shadow.camera.bottom=-300;
+scene.add(sun);
+
+const material=(c,r=.85)=>new THREE.MeshStandardMaterial({color:c,roughness:r});
+const roadMat=material(0x292e34);
+const white=material(0xffffff);
+const glass=new THREE.MeshStandardMaterial({color:0x6b9caf,roughness:.25,metalness:.3});
+
+function cube(parent,x,y,z,w,h,d,mat){
+ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+ o.position.set(x,y,z);
+ o.castShadow=true;o.receiveShadow=true;
+ parent.add(o);return o;
+}
+function plane(parent,x,y,z,w,d,mat){
+ const o=new THREE.Mesh(new THREE.PlaneGeometry(w,d),mat);
+ o.rotation.x=-Math.PI/2;o.position.set(x,y,z);
+ o.receiveShadow=true;parent.add(o);return o;
+}
+
+// Expanded city ground
+plane(scene,0,-.15,0,1400,1400,material(0x77796e));
+
+// Road network
+function road(x,z,w,d){
+ cube(scene,x,.01,z,w,.08,d,roadMat);
+}
+road(0,0,20,1200);
+road(0,0,1200,20);
+road(120,0,14,1200);
+road(-130,0,14,1200);
+road(0,130,1200,14);
+road(0,-130,1200,14);
+road(300,0,16,1200);
+road(0,300,1200,16);
+road(0,-300,1200,16);
+road(-300,0,16,1200);
+
+for(let z=-580;z<600;z+=18){
+ for(const x of [0,120,-130,300,-300])
+  cube(scene,x,.07,z,.25,.025,7,white);
+}
+for(let x=-580;x<600;x+=18){
+ for(const z of [0,130,-130,300,-300])
+  cube(scene,x,.07,z,7,.025,.25,white);
+}
+
+// Sidewalks
+for(const x of [-13,13,107,133,-143,-117,287,313,-313,-287])
+ cube(scene,x,.12,0,2,.2,1200,material(0xa3a39b));
+for(const z of [-13,13,117,143,-143,-117,287,313,-313,-287])
+ cube(scene,0,.12,z,1200,.2,2,material(0xa3a39b));
+
+// Buildings across the city
+const buildingColors=[0xb9b4a8,0x8c9ca3,0xc5b9a6,0x888c90,0xd0c6b7,0x879ca5];
+function building(x,z,w,h,d,color){
+ const g=new THREE.Group();
+ cube(g,0,h/2,0,w,h,d,material(color));
+ const floors=Math.floor(h/4);
+ const cols=Math.max(2,Math.floor(w/3.5));
+ for(let f=0;f<floors;f++){
+  for(let c=0;c<cols;c++){
+   const wx=-w/2+1.3+c*(w-2.6)/Math.max(1,cols-1);
+   cube(g,wx,2+f*4,d/2+.03,.9,1.7,.06,glass);
+   cube(g,wx,2+f*4,-d/2-.03,.9,1.7,.06,glass);
+  }
+ }
+ cube(g,0,h+.4,0,w*.25,.8,d*.25,material(0x6d7478));
+ g.position.set(x,0,z);scene.add(g);
+}
+for(let x=-560;x<=560;x+=55){
+ for(let z=-560;z<=560;z+=55){
+  if(Math.abs(x)<40||Math.abs(z)<40||
+     Math.abs(x-120)<35||Math.abs(x+130)<35||
+     Math.abs(z-130)<35||Math.abs(z+130)<35||
+     Math.abs(x-300)<35||Math.abs(z-300)<35)continue;
+  building(x+(Math.random()-.5)*12,z+(Math.random()-.5)*12,
+   18+Math.random()*18,12+Math.random()*65,18+Math.random()*18,
+   buildingColors[Math.floor(Math.random()*buildingColors.length)]);
+ }
+}
+// Downtown towers
+building(45,45,30,125,28,0x879da6);
+building(-48,48,25,95,25,0xc1b5a4);
+building(175,-55,28,115,25,0x8497a2);
+building(-180,-180,32,105,30,0xb7aa98);
+building(350,220,35,80,30,0x8d9ea4);
+
+// Trees
+function tree(x,z){
+ cube(scene,x,2,z,.7,4,.7,material(0x60452c));
+ const crown=new THREE.Mesh(new THREE.SphereGeometry(3.4,10,9),material(0x28633c));
+ crown.position.set(x,5,z);crown.castShadow=true;scene.add(crown);
+}
+for(let x=-550;x<550;x+=38){
+ for(const z of [-20,20,105,155,-155,-105]){
+  if(Math.abs(x)<35)continue;
+  tree(x,z);
+ }
+}
+
+// Airport terminal
+building(390,390,90,20,55,0xc4c1b8);
+cube(scene,390,10.5,362,80,1,2,glass);
+cube(scene,390,.1,475,150,.12,150,roadMat);
+for(let x=330;x<=450;x+=30)cube(scene,x,.2,475,1,.12,100,white);
+
+// Airplane model
+const planeGroup=new THREE.Group();
+const aircraft=material(0xe8e8e8,.4);
+const wingmat=material(0xd4d9de,.45);
+cube(planeGroup,0,0,0,5,4,35,aircraft);
+cube(planeGroup,0,1,0,48,1,9,wingmat);
+cube(planeGroup,0,1,-12,18,1,5,wingmat);
+cube(planeGroup,0,4,-14,2,7,4,aircraft);
+for(const x of [-1,1]){
+ const engine=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.2,4,16),material(0x555b61));
+ engine.rotation.z=Math.PI/2;engine.position.set(x*8,-1,1);planeGroup.add(engine);
+}
+planeGroup.position.set(390,8,460);
+planeGroup.rotation.y=Math.PI;
+scene.add(planeGroup);
+
+// Player
+const player=new THREE.Group();scene.add(player);
+const skin=material(0x8b593d),shirt=material(0x225da0),pants=material(0x202b3c);
+cube(player,0,1.35,0,.7,.9,.4,shirt);
+const head=new THREE.Mesh(new THREE.SphereGeometry(.24,16,12),skin);
+head.position.y=2.05;head.castShadow=true;player.add(head);
+const legs=[],arms=[];
+function limb(x,y,length,rad,mat){
+ const o=new THREE.Mesh(new THREE.CylinderGeometry(rad,rad,length,10),mat);
+ o.position.set(x,y,0);o.castShadow=true;player.add(o);return o;
+}
+for(const s of [-1,1]){
+ legs.push(limb(s*.2,.48,.85,.13,pants));
+ arms.push(limb(s*.47,1.35,.72,.09,skin));
+ cube(player,s*.2,.08,.04,.3,.16,.45,material(0x151515));
+}
+player.position.set(4,0,5);
+
+// Cars
+function makeCar(name,color,x,z,price=0,scale=1){
+ const g=new THREE.Group();
+ const paint=new THREE.MeshStandardMaterial({color,metalness:.6,roughness:.25});
+ cube(g,0,.72,0,2.35,.7,4.5,paint);
+ cube(g,0,1.32,-.2,1.85,.75,2.4,glass);
+ cube(g,0,1.04,1.35,2.2,.25,1.45,paint);
+ const wheels=[];
+ for(const sx of [-1,1])for(const sz of [-1,1]){
+  const w=new THREE.Mesh(new THREE.CylinderGeometry(.43,.43,.26,18),material(0x111111));
+  w.rotation.z=Math.PI/2;w.position.set(sx*1.15,.42,sz*1.4);
+  g.add(w);wheels.push(w);
+ }
+ g.position.set(x,0,z);g.scale.setScalar(scale);scene.add(g);
+ return {name,group:g,wheels,speed:0,angle:0,price};
+}
+const cars=[
+ makeCar("Blue Sports Coupe",0x124ca9,8,10),
+ makeCar("Red Supercar",0xd51c25,22,8),
+ makeCar("Black Luxury Car",0x151515,-25,12),
+ makeCar("White Sports Car",0xe6e6e6,32,-12),
+ makeCar("Green Performance Car",0x16834c,-20,-18)
+];
+let activeCar=null;
+let money=5000000;
+function updateMoney(){
+ document.getElementById("money").textContent="₦"+money.toLocaleString("en-NG");
+}
+
+// State destinations: different areas of the expanded game world
+const states=[
+ {name:"Lagos",x:4,z:5},
+ {name:"Abuja",x:450,z:-400},
+ {name:"Kano",x:-480,z:-420},
+ {name:"Rivers",x:450,z:440},
+ {name:"Oyo",x:-450,z:400},
+ {name:"Enugu",x:520,z:-80},
+ {name:"Kaduna",x:-520,z:-80},
+ {name:"Ogun",x:-400,z:180}
+];
+function makeStateHub(s){
+ building(s.x+30,s.z+30,35,30,35,0xc1b49f);
+ cube(scene,s.x,0.15,s.z,100,.1,100,material(0x77796e));
+ cube(scene,s.x,0.2,s.z+65,100,.12,10,roadMat);
+ tree(s.x+55,s.z+30);
+}
+states.slice(1).forEach(makeStateHub);
+
+// Game UI helpers
+function msg(t){
+ const el=document.getElementById("message");
+ el.textContent=t;el.style.display="block";
+ clearTimeout(msg.timer);
+ msg.timer=setTimeout(()=>el.style.display="none",2700);
+}
+function panel(title,description,buttons=[]){
+ document.getElementById("overlay").style.display="flex";
+ document.getElementById("boxTitle").textContent=title;
+ document.getElementById("boxText").textContent=description;
+ const area=document.getElementById("boxButtons");
+ area.innerHTML="";
+ buttons.forEach(b=>{
+  const el=document.createElement("button");
+  el.className="menuBtn";el.textContent=b.label;
+  el.onclick=b.action;area.appendChild(el);
+ });
+}
+function closePanel(){document.getElementById("overlay").style.display="none"}
+document.getElementById("close").onclick=closePanel;
+function showInfo(title,description){panel(title,description,[{label:"OK",action:closePanel}])}
+
+// Dealership
+function openDealership(){
+ document.getElementById("phone").style.display="none";
+ const stock=[
+  ["Sports Coupe",0x1188ee,1500000],
+  ["Red Supercar",0xe22222,3000000],
+  ["Golden Hypercar",0xd9a928,4500000],
+  ["Black Luxury Sports",0x151515,2500000],
+  ["White Racing Car",0xe7e7e7,2200000],
+  ["Green Supercar",0x16834c,3800000],
+  ["Purple Performance Car",0x792db7,3200000]
+ ];
+ panel("🚘 SPORTS CAR DEALERSHIP","Choose a car. Your purchased car will appear beside you.",stock.map(item=>({
+  label:item[0]+" — ₦"+item[2].toLocaleString("en-NG"),
+  action:()=>{
+   if(money<item[2]){msg("Not enough virtual money!");return}
+   money-=item[2];updateMoney();
+   const c=makeCar(item[0],item[1],player.position.x+6,player.position.z+5,item[2]);
+   cars.push(c);closePanel();msg(item[0]+" purchased!");
+  }
+ })));
+}
+
+// Airport and state travel
+function openAirport(){
+ document.getElementById("phone").style.display="none";
+ const options=states.map(s=>({
+  label:"✈️ Travel to "+s.name,
+  action:()=>{
+   if(activeCar){activeCar=null;player.visible=true;setDriving(false)}
+   player.position.set(s.x,0,s.z);
+   player.visible=true;
+   planeGroup.position.set(390,8,460);
+   closePanel();
+   document.getElementById("location").textContent=s.name+", Nigeria";
+   msg("Welcome to "+s.name+"! Your flight has arrived.");
+  }
+ }));
+ panel("✈️ NIGERIA AIRPORT","Select a destination. Flights use virtual travel in this game.",options);
+}
+
+// Properties
+function openProperties(){
+ document.getElementById("phone").style.display="none";
+ panel("🏠 PROPERTIES","Buy a virtual house for ₦2,000,000.",[
+  {label:"BUY HOUSE — ₦2,000,000",action:()=>{
+   if(money<2000000){msg("Not enough money!");return}
+   money-=2000000;updateMoney();
+   building(player.position.x+18,player.position.z+15,14,9,14,0xd1b58e);
+   closePanel();msg("Your new house is ready!");
+  }},
+  {label:"RENT HOUSE — ₦50,000",action:()=>{
+   if(money<50000){msg("Not enough money!");return}
+   money-=50000;updateMoney();closePanel();msg("You rented a house!");
+  }}
+ ]);
+}
+
+// Investments
+function openInvestment(){
+ document.getElementById("phone").style.display="none";
+ panel("📈 INVESTMENTS","Use virtual money to invest in your business.",[
+  {label:"INVEST ₦500,000",action:()=>{
+   if(money<500000){msg("Not enough money!");return}
+   money-=500000;money+=650000;updateMoney();
+   closePanel();msg("Your virtual business made ₦150,000!");
+  }},
+  {label:"INVEST ₦1,000,000",action:()=>{
+   if(money<1000000){msg("Not enough money!");return}
+   money-=1000000;money+=1300000;updateMoney();
+   closePanel();msg("Your virtual business made ₦300,000!");
+  }}
+ ]);
+}
+
+// Phone
+document.getElementById("phoneBtn").onclick=()=>{
+ const p=document.getElementById("phone");
+ p.style.display=p.style.display==="block"?"none":"block";
+};
+
+// Movement controls
+const input={x:0,y:0,gas:false,brake:false};
+const stick=document.getElementById("stick");
+const knob=document.getElementById("knob");
+let pointer=null;
+function setStick(e){
+ const r=stick.getBoundingClientRect();
+ let dx=e.clientX-r.left-r.width/2;
+ let dy=e.clientY-r.top-r.height/2;
+ const max=41,len=Math.hypot(dx,dy);
+ if(len>max){dx*=max/len;dy*=max/len}
+ knob.style.transform=`translate(${dx}px,${dy}px)`;
+ input.x=dx/max;input.y=dy/max;
+}
+function resetStick(){
+ pointer=null;input.x=0;input.y=0;
+ knob.style.transform="translate(0,0)";
+}
+stick.addEventListener("pointerdown",e=>{
+ pointer=e.pointerId;stick.setPointerCapture(pointer);setStick(e);
+});
+stick.addEventListener("pointermove",e=>{if(e.pointerId===pointer)setStick(e)});
+stick.addEventListener("pointerup",resetStick);
+stick.addEventListener("pointercancel",resetStick);
+
+function hold(id,key){
+ const el=document.getElementById(id);
+ el.addEventListener("pointerdown",e=>{e.preventDefault();input[key]=true});
+ ["pointerup","pointercancel","pointerleave"].forEach(ev=>
+  el.addEventListener(ev,()=>input[key]=false));
+}
+hold("gasBtn","gas");hold("brakeBtn","brake");
+
+const keys={};
+addEventListener("keydown",e=>{
+ keys[e.key.toLowerCase()]=true;
+ if(e.key.toLowerCase()==="e")toggleCar();
+ if(e.code==="Space")jump();
+});
+addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+
+let jumpTime=0;
+function jump(){if(!activeCar&&jumpTime<=0)jumpTime=1.1}
+document.getElementById("jumpBtn").onclick=jump;
+document.getElementById("enterBtn").onclick=toggleCar;
+
+function setDriving(v){
+ document.getElementById("driveControls").style.display=v?"flex":"none";
+ document.getElementById("enterBtn").innerHTML=v?"EXIT<br>CAR":"ENTER<br>CAR";
+}
+function toggleCar(){
+ if(activeCar){
+  player.position.copy(activeCar.group.position);
+  player.position.x+=3;
+  player.rotation.y=activeCar.angle;
+  activeCar=null;player.visible=true;setDriving(false);
+  msg("You exited the car.");return;
+ }
+ let nearest=null,dist=9;
+ for(const c of cars){
+  const d=player.position.distanceTo(c.group.position);
+  if(d<dist){dist=d;nearest=c}
+ }
+ if(nearest){
+  activeCar=nearest;player.visible=false;setDriving(true);
+  msg("You entered "+nearest.name+". Drive!");
+ }else msg("Walk closer to a car first.");
+}
+
+// Character animation and movement
+const clock=new THREE.Clock();
+function updatePlayer(dt){
+ if(activeCar)return;
+ let f=-input.y,s=input.x;
+ if(keys.w||keys.arrowup)f=1;
+ if(keys.s||keys.arrowdown)f=-1;
+ if(keys.a||keys.arrowleft)s=-1;
+ if(keys.d||keys.arrowright)s=1;
+ const moving=Math.abs(f)+Math.abs(s)>.08;
+ if(moving){
+  const forward=new THREE.Vector3();
+  camera.getWorldDirection(forward);forward.y=0;forward.normalize();
+  const right=new THREE.Vector3().crossVectors(forward,new THREE.Vector3(0,1,0)).normalize();
+  const dir=forward.multiplyScalar(f).add(right.multiplyScalar(s)).normalize();
+  player.position.addScaledVector(dir,6*dt);
+  player.rotation.y=Math.atan2(dir.x,dir.z);
+ }
+ const t=clock.elapsedTime*10;
+ legs[0].rotation.x=moving?Math.sin(t)*.65:0;
+ legs[1].rotation.x=moving?-Math.sin(t)*.65:0;
+ arms[0].rotation.x=moving?-Math.sin(t)*.45:0;
+ arms[1].rotation.x=moving?Math.sin(t)*.45:0;
+ if(jumpTime>0){
+  player.position.y=Math.sin((1.1-jumpTime)/1.1*Math.PI)*1.5;
+  jumpTime-=dt*2;
+  if(jumpTime<=0){jumpTime=0;player.position.y=0}
+ }
+}
+
+// Driving
+function updateCar(dt){
+ if(!activeCar)return;
+ const c=activeCar;
+ const steer=input.x+(keys.a?-1:0)+(keys.d?1:0);
+ const gas=input.gas||keys.w||keys.arrowup;
+ const brake=input.brake||keys.s||keys.arrowdown;
+ if(gas)c.speed=Math.min(c.speed+13*dt,30);
+ else c.speed*=Math.pow(.95,dt*60);
+ if(brake)c.speed=Math.max(c.speed-23*dt,-8);
+ c.angle-=steer*c.speed*.034*dt;
+ c.group.rotation.y=c.angle;
+ const dir=new THREE.Vector3(Math.sin(c.angle),0,Math.cos(c.angle));
+ c.group.position.addScaledVector(dir,c.speed*dt);
+ c.wheels.forEach(w=>w.rotation.x+=c.speed*dt*1.5);
+}
+
+// Camera follows character or car
+function updateCamera(dt){
+ const target=activeCar?activeCar.group.position:player.position;
+ const angle=activeCar?activeCar.angle:player.rotation.y;
+ const distance=activeCar?11:8;
+ const height=activeCar?5.5:4.5;
+ const desired=new THREE.Vector3(
+  target.x-Math.sin(angle)*distance,
+  target.y+height,
+  target.z-Math.cos(angle)*distance
+ );
+ camera.position.lerp(desired,1-Math.pow(.001,dt));
+ camera.lookAt(target.x,target.y+1.3,target.z);
+}
+
+function boundaries(){
+ const o=activeCar?activeCar.group:player;
+ o.position.x=THREE.MathUtils.clamp(o.position.x,-650,650);
+ o.position.z=THREE.MathUtils.clamp(o.position.z,-650,650);
+}
+
+// Daylight cycle
+let dayTime=0;
+function animate(){
+ requestAnimationFrame(animate);
+ const dt=Math.min(clock.getDelta(),.04);
+ dayTime+=dt*.003;
+ sun.position.x=Math.sin(dayTime)*120;
+ updatePlayer(dt);updateCar(dt);boundaries();updateCamera(dt);
+ renderer.render(scene,camera);
+}
+camera.position.set(0,7,15);
+camera.lookAt(0,1,0);
+animate();
+
+addEventListener("resize",()=>{
+ camera.aspect=innerWidth/innerHeight;
+ camera.updateProjectionM
