@@ -212,5 +212,84 @@ addEventListener('resize',()=>{
 
 setTimeout(()=>document.getElementById('message').style.display='none',3500);
 </script>
+// ===== LAGOS LIFE BUGATTI SYSTEM =====
+
+const bugatti = new THREE.Group();
+
+const bluePaint = new THREE.MeshStandardMaterial({
+  color: 0x064cff,
+  metalness: 0.75,
+  roughness: 0.25
+});
+
+const blackPaint = new THREE.MeshStandardMaterial({
+  color: 0x111111,
+  metalness: 0.4
+});
+
+// Main car body
+const carBody = new THREE.Mesh(
+  new THREE.BoxGeometry(2.3, 0.65, 4.6),
+  bluePaint
+);
+carBody.position.y = 0.75;
+bugatti.add(carBody);
+
+// Upper cabin
+const cabin = new THREE.Mesh(
+  new THREE.BoxGeometry(1.65, 0.65, 2),
+  new THREE.MeshStandardMaterial({color:0x111b33})
+);
+cabin.position.set(0,1.35,-0.15);
+bugatti.add(cabin);
+
+// Wheels
+for (const x of [-1.15,1.15]) {
+  for (const z of [-1.4,1.4]) {
+    const wheel = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.42,0.42,0.3,20),
+      blackPaint
+    );
+    wheel.rotation.z = Math.PI/2;
+    wheel.position.set(x,0.43,z);
+    bugatti.add(wheel);
+  }
+}
+
+scene.add(bugatti);
+bugatti.visible = false;
+
+// Drive button
+const driveButton = document.createElement('button');
+driveButton.innerText = '🚗 ENTER BUGATTI';
+driveButton.style.cssText =
+'position:absolute;bottom:165px;right:25px;padding:16px;background:#064cff;color:white;border:3px solid white;border-radius:15px;font-weight:bold;z-index:10;';
+document.body.appendChild(driveButton);
+
+let drivingBugatti = false;
+
+driveButton.onclick = () => {
+  drivingBugatti = !drivingBugatti;
+  bugatti.visible = drivingBugatti;
+  player.visible = !drivingBugatti;
+  driveButton.innerText = drivingBugatti
+    ? '🚶 EXIT BUGATTI'
+    : '🚗 ENTER BUGATTI';
+};
+
+function updateBugatti() {
+  if (drivingBugatti) {
+    bugatti.position.copy(player.position);
+    bugatti.position.y = 0;
+    bugatti.rotation.y = player.rotation.y;
+  }
+  requestAnimationFrame(updateBugatti);
+}
+
+updateBugatti();
+
+// ===== END BUGATTI SYSTEM =====
+
 </body>
 </html>
+
