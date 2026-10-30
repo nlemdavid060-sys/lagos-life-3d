@@ -89,7 +89,7 @@ const SAVE_KEY="lagosLifePremiumSave";
 let saved={};
 try{saved=JSON.parse(localStorage.getItem(SAVE_KEY)||"{}")||{};}catch(e){saved={};}
 
-let money=Number.isFinite(saved.money)?saved.money:1000000000;
+let money=Number.isFinite(saved.money)?saved.money:1000000000000;
 let owned=Array.isArray(saved.owned)?saved.owned:[];
 let completed=Array.isArray(saved.completed)?saved.completed:[];
 let fuel=100;
