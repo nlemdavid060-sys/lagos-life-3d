@@ -1,0 +1,623 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>LAGOS LIFE 3D PREMIUM</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden;background:#071b30;font-family:Arial;color:white}
+canvas{display:block}
+button{border:1px solid #b68a37;background:#102b46;color:white;border-radius:10px;padding:11px;font-weight:bold}
+button:active{background:#b68a37;color:#071b30}
+#hud{position:absolute;top:9px;left:9px;background:#071b30e8;border:1px solid #d5a642;border-radius:12px;padding:11px;z-index:5;min-width:155px}
+#hud h2{margin:0 0 7px;color:#f5ca65;font-size:17px}
+#hud p{font-size:12px;margin:5px 0}
+#topButtons{position:absolute;right:9px;top:9px;display:grid;gap:6px;z-index:5}
+#controls{position:absolute;bottom:15px;left:10px;display:grid;grid-template-columns:53px 53px 53px;gap:5px;z-index:5}
+#controls button{height:53px;padding:0;font-size:20px;background:#071b30dd}
+#actions{position:absolute;bottom:20px;right:10px;display:grid;gap:7px;z-index:5}
+#actions button{background:#123b48}
+#message{position:absolute;bottom:110px;left:50%;transform:translateX(-50%);background:#071b30ed;border:1px solid #d5a642;padding:10px;border-radius:10px;font-size:12px;z-index:5;text-align:center;max-width:85%}
+#panel{display:none;position:absolute;inset:4%;z-index:20;background:#071b30f7;border:2px solid #d5a642;border-radius:17px;padding:14px;overflow:auto;text-align:center}
+#panel h2{color:#f5ca65;margin:5px}
+#panel h3{color:#75e6ff}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.item{background:#12334e;border:1px solid #315879;border-radius:12px;padding:10px;font-size:13px}
+.item button{width:100%;margin-top:8px;background:#087a54}
+#close{width:100%;background:#8b2635;margin-top:12px}
+#inventory{background:#102d45;padding:10px;border-radius:10px;text-align:left;font-size:12px}
+#inventory ul{padding-left:20px}
+#map{position:absolute;right:10px;bottom:190px;width:105px;height:105px;border:2px solid #d5a642;border-radius:50%;background:#143e4b;z-index:4;overflow:hidden}
+#map span{position:absolute;color:white;font-size:10px;left:35px;top:44px}
+@media(max-width:370px){#hud{min-width:130px;padding:7px}#hud h2{font-size:14px}#hud p{font-size:10px}}
+</style>
+</head>
+<body>
+
+<div id="hud">
+<h2>👑 LAGOS LIFE</h2>
+<p>💰 <span id="money">₦1,000,000,000</span></p>
+<p id="mode">🚶 WALKING</p>
+<p id="speed">SPEED: 0 KM/H</p>
+<p id="fuel">⛽ FUEL: 100%</p>
+</div>
+
+<div id="topButtons">
+<button onclick="openPanel('shop')">🛍️ PREMIUM SHOP</button>
+<button onclick="openPanel('garage')">🚘 GARAGE</button>
+<button onclick="openPanel('missions')">🎯 MISSIONS</button>
+<button onclick="openPanel('bank')">🏦 BANK</button>
+<button onclick="toggleNight()">🌙 DAY/NIGHT</button>
+</div>
+
+<div id="map"><span>📍 YOU</span></div>
+
+<div id="controls">
+<div></div><button data-key="up">⬆️</button><div></div>
+<button data-key="left">⬅️</button>
+<button data-key="down">⬇️</button>
+<button data-key="right">➡️</button>
+</div>
+
+<div id="actions">
+<button onclick="toggleCar()">🚗 ENTER / EXIT</button>
+<button onclick="jump()">⬆️ JUMP</button>
+</div>
+
+<div id="message">Welcome to Lagos Life Premium!</div>
+
+<div id="panel">
+<h2 id="panelTitle">PREMIUM</h2>
+<h3 id="panelBalance">₦1,000,000,000</h3>
+<div id="panelContent"></div>
+<button id="close" onclick="closePanel()">CLOSE ✖</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+
+if(!window.THREE){
+document.getElementById("message").textContent="Game could not load. Check your internet connection.";
+return;
+}
+
+// SAVE GAME
+const SAVE_KEY="lagosLifePremiumSave";
+let saved={};
+try{saved=JSON.parse(localStorage.getItem(SAVE_KEY)||"{}")||{};}catch(e){saved={};}
+
+let money=Number.isFinite(saved.money)?saved.money:1000000000;
+let owned=Array.isArray(saved.owned)?saved.owned:[];
+let completed=Array.isArray(saved.completed)?saved.completed:[];
+let fuel=100;
+let driving=false;
+let night=false;
+let speed=0;
+let selectedCar=saved.selectedCar||"Bugatti";
+
+function save(){
+try{
+localStorage.setItem(SAVE_KEY,JSON.stringify({
+money,owned,completed,selectedCar
+}));
+}catch(e){}
+}
+
+function moneyText(n){
+return "₦"+n.toLocaleString("en-NG");
+}
+
+function updateHUD(){
+document.getElementById("money").textContent=moneyText(money);
+document.getElementById("panelBalance").textContent=moneyText(money);
+document.getElementById("fuel").textContent="⛽ FUEL: "+Math.floor(fuel)+"%";
+}
+
+function say(text){
+document.getElementById("message").textContent=text;
+}
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x80c9ec);
+scene.fog=new THREE.Fog(0x80c9ec,100,320);
+
+const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,0.1,500);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputEncoding=THREE.sRGBEncoding;
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x4d5c48,1.5));
+
+const sun=new THREE.DirectionalLight(0xffffff,1.4);
+sun.position.set(-40,80,40);
+sun.castShadow=true;
+sun.shadow.mapSize.set(1024,1024);
+scene.add(sun);
+
+function material(color,roughness=0.8){
+return new THREE.MeshStandardMaterial({color,roughness});
+}
+
+function block(w,h,d,mat,x,y,z){
+const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+m.position.set(x,y,z);
+m.castShadow=true;
+m.receiveShadow=true;
+scene.add(m);
+return m;
+}
+
+// OPTIONAL LAGOS IMAGE BACKGROUND
+new THREE.TextureLoader().load(
+"images/lagos-background.jpg",
+t=>{
+t.encoding=THREE.sRGBEncoding;
+scene.background=t;
+},
+undefined,
+()=>{}
+);
+
+// CITY GROUND
+block(500,1,500,material(0x35834b),0,-0.7,0);
+
+// MAIN ROADS
+block(20,0.15,450,material(0x292d32),0,0,0);
+block(450,0.15,20,material(0x292d32),0,0,0);
+
+for(let z=-220;z<220;z+=16){
+block(0.3,0.03,6,material(0xffffff),0,0.1,z);
+}
+for(let x=-220;x<220;x+=16){
+block(6,0.03,0.3,material(0xffffff),x,0.1,0);
+}
+
+// PAVEMENTS
+block(24,0.3,450,material(0x929292),0,0.05,0);
+block(450,0.3,24,material(0x929292),0,0.05,0);
+block(20,0.15,450,material(0x292d32),0,0.3,0);
+block(450,0.15,20,material(0x292d32),0,0.3,0);
+
+// BUILDINGS
+const buildingColors=[0xe3d8c5,0xbacbdb,0xc6b9a8,0x8b9baa,0xd9d9d9];
+for(let i=0;i<90;i++){
+const x=(Math.random()-0.5)*240;
+const z=(Math.random()-0.5)*240;
+if(Math.abs(x)<17||Math.abs(z)<17)continue;
+
+const w=8+Math.random()*12;
+const d=8+Math.random()*12;
+const h=12+Math.random()*35;
+block(w,h,d,material(buildingColors[i%5]),x,h/2,z);
+
+// Simple windows
+for(let y=4;y<h-2;y+=5){
+for(let xx=-w/2+2;xx<w/2-1;xx+=3){
+block(1.3,1.8,0.12,material(0x6bb9d8),x+xx,y,z+d/2+0.1);
+}
+}
+}
+
+// PALM TREES
+function palm(x,z){
+block(0.55,7,0.55,material(0x79502d),x,3.5,z);
+for(let i=0;i<6;i++){
+const leaf=block(0.8,0.2,5,material(0x14823b),x,7,z);
+leaf.rotation.y=i*Math.PI/3;
+leaf.rotation.x=0.2;
+}
+}
+for(let i=-200;i<210;i+=28){
+palm(-16,i);
+palm(16,i);
+}
+
+// STREET LIGHTS
+for(let z=-190;z<200;z+=40){
+block(0.25,7,0.25,material(0x333333),12,3.5,z);
+block(3,0.2,0.2,material(0xffe9a0),13.3,7,z);
+}
+
+// LUXURY MANSION
+function buildMansion(x,z){
+const houseMat=material(0xe5d6b9);
+block(25,10,20,houseMat,x,5,z);
+block(27,1,22,material(0x6a4240),x,10,z);
+block(10,4,0.5,material(0x47301f),x,2,z+10.3);
+for(let i=-10;i<=10;i+=10){
+block(1,8,1,material(0xf3eee2),x+i,4,z+10);
+}
+block(20,0.3,12,material(0x50b8dc),x,0.2,z+19);
+block(32,0.5,28,material(0xb1a78d),x,0.1,z+5);
+}
+buildMansion(55,-30);
+
+// PLAYER
+const player=new THREE.Group();
+const blue=material(0x075bd1);
+const black=material(0x171717);
+const skin=material(0x895c3d);
+
+const torso=new THREE.Mesh(
+new THREE.CylinderGeometry(0.55,0.7,1.6,12),blue
+);
+torso.position.y=1.5;
+player.add(torso);
+
+const head=new THREE.Mesh(
+new THREE.SphereGeometry(0.45,16,12),skin
+);
+head.position.y=2.65;
+player.add(head);
+
+const hair=new THREE.Mesh(
+new THREE.SphereGeometry(0.47,16,8,0,Math.PI*2,0,Math.PI/2),black
+);
+hair.position.y=2.85;
+player.add(hair);
+
+const legs=[];
+for(const side of [-1,1]){
+const leg=new THREE.Mesh(
+new THREE.BoxGeometry(0.35,0.9,0.4),black
+);
+leg.position.set(side*0.3,0.45,0);
+player.add(leg);
+legs.push(leg);
+}
+scene.add(player);
+player.position.set(0,0,25);
+
+// CAR FACTORY
+const carPaint=new THREE.MeshStandardMaterial({
+color:0x004cff,metalness:0.65,roughness:0.22
+});
+
+const cars={};
+
+function makeCar(name,color){
+const group=new THREE.Group();
+const paint=new THREE.MeshStandardMaterial({
+color,metalness:0.65,roughness:0.25
+});
+const body=new THREE.Mesh(
+new THREE.BoxGeometry(4,1,7),paint
+);
+body.position.y=1;
+group.add(body);
+
+const cabin=new THREE.Mesh(
+new THREE.BoxGeometry(3,1.1,3),
+material(0x68b9d8,0.25)
+);
+cabin.position.y=2;
+group.add(cabin);
+
+for(const x of [-2,2]){
+for(const z of [-2.2,2.2]){
+const wheel=new THREE.Mesh(
+new THREE.CylinderGeometry(0.65,0.65,0.4,16),
+black
+);
+wheel.rotation.z=Math.PI/2;
+wheel.position.set(x,0.65,z);
+group.add(wheel);
+}
+}
+
+group.visible=false;
+scene.add(group);
+cars[name]=group;
+return group;
+}
+
+makeCar("Bugatti",0x004cff);
+makeCar("Mercedes",0xaaaaaa);
+makeCar("Lamborghini",0xffb400);
+makeCar("Ferrari",0xc90024);
+
+let car=cars.Bugatti;
+car.visible=true;
+car.position.set(7,0,20);
+
+// TRAFFIC
+const buses=[];
+for(let i=0;i<5;i++){
+const bus=new THREE.Group();
+const body=new THREE.Mesh(
+new THREE.BoxGeometry(3,2,6),material(0xffc400)
+);
+body.position.y=1.2;
+bus.add(body);
+scene.add(bus);
+bus.position.set(4,0,-i*40-35);
+buses.push(bus);
+}
+
+// PREMIUM SHOP
+const products=[
+{name:"Bugatti",price:300000000,type:"car",icon:"🏎️"},
+{name:"Mercedes",price:150000000,type:"car",icon:"🚘"},
+{name:"Lamborghini",price:250000000,type:"car",icon:"🏎️"},
+{name:"Ferrari",price:200000000,type:"car",icon:"🏎️"},
+{name:"Luxury Mansion",price:400000000,type:"house",icon:"🏠"},
+{name:"Designer Clothes",price:5000000,type:"clothes",icon:"👕"},
+{name:"Food",price:50000,type:"food",icon:"🍔"},
+{name:"Fuel",price:100000,type:"fuel",icon:"⛽"}
+];
+
+function renderShop(){
+const panel=document.getElementById("panelContent");
+panel.innerHTML='<div class="grid">'+products.map((p,i)=>{
+const isOwned=owned.includes(p.name);
+return '<div class="item">'+p.icon+'<br><b>'+p.name+'</b><p>'+moneyText(p.price)+'</p><button onclick="purchase('+i+')">'+(isOwned?"OWNED":"BUY")+'</button></div>';
+}).join("")+'</div>';
+}
+
+window.purchase=function(index){
+const p=products[index];
+if(owned.includes(p.name)){
+say("You already own "+p.name+"!");
+return;
+}
+if(money<p.price){
+say("Not enough money!");
+return;
+}
+money-=p.price;
+owned.push(p.name);
+
+if(p.type==="fuel")fuel=100;
+if(p.type==="car"){
+selectCar(p.name);
+}
+if(p.type==="clothes"){
+player.children[0].material=material(0x9b38d1);
+}
+if(p.type==="house"){
+say("Congratulations! Your mansion is purchased!");
+}
+save();
+updateHUD();
+renderShop();
+say("Purchased "+p.name+" successfully!");
+};
+
+// GARAGE
+function renderGarage(){
+const list=["Bugatti","Mercedes","Lamborghini","Ferrari"];
+document.getElementById("panelContent").innerHTML=
+'<div class="grid">'+list.map(name=>
+'<div class="item">🚘<br><b>'+name+'</b><p>'+
+(owned.includes(name)?"OWNED":"NOT OWNED")+
+'</p><button onclick="garageSelect(\''+name+'\')">'+
+(owned.includes(name)?"SELECT":"LOCKED")+
+'</button></div>'
+).join("")+'</div>';
+}
+
+function selectCar(name){
+if(!cars[name])return;
+Object.values(cars).forEach(c=>c.visible=false);
+car=cars[name];
+car.visible=true;
+car.position.set(7,0,20);
+selectedCar=name;
+save();
+}
+
+window.garageSelect=function(name){
+if(!owned.includes(name)){
+say("You need to buy this car first!");
+return;
+}
+selectCar(name);
+say(name+" selected!");
+};
+
+// MISSIONS
+const missions=[
+{name:"Explore the City",reward:1000000,description:"Walk around Lagos for your first mission."},
+{name:"Visit Your Car",reward:2000000,description:"Go close to your car."},
+{name:"Drive Your Car",reward:5000000,description:"Drive your car around Lagos."}
+];
+
+function renderMissions(){
+document.getElementById("panelContent").innerHTML=
+'<div class="grid">'+missions.map((m,i)=>
+'<div class="item"><b>🎯 '+m.name+'</b><p>'+m.description+'</p><p>Reward: '+moneyText(m.reward)+'</p>'+
+'<button onclick="claimMission('+i+')">'+
+(completed.includes(i)?"COMPLETED":"CLAIM REWARD")+
+'</button></div>'
+).join("")+'</div>';
+}
+
+window.claimMission=function(i){
+if(completed.includes(i)){
+say("Mission already completed!");
+return;
+}
+const m=missions[i];
+
+if(i===0&&player.position.length()===0){
+say("Explore the city first!");
+return;
+}
+if(i===1&&player.position.distanceTo(car.position)>12&&!driving){
+say("Go closer to your car first!");
+return;
+}
+if(i===2&&!driving){
+say("Enter your car first!");
+return;
+}
+
+completed.push(i);
+money+=m.reward;
+save();
+updateHUD();
+renderMissions();
+say("Mission completed! You earned "+moneyText(m.reward));
+};
+
+// BANK
+function renderBank(){
+document.getElementById("panelContent").innerHTML=
+'<div class="item"><h3>🏦 LAGOS BANK</h3><p>Your available balance:</p><h2>'+moneyText(money)+'</h2><p>Your money is saved in this browser.</p></div>';
+}
+
+// PANELS
+window.openPanel=function(type){
+const panel=document.getElementById("panel");
+panel.style.display="block";
+updateHUD();
+
+if(type==="shop"){
+document.getElementById("panelTitle").textContent="🛍️ PREMIUM SHOP";
+renderShop();
+}
+if(type==="garage"){
+document.getElementById("panelTitle").textContent="🚘 LUXURY GARAGE";
+renderGarage();
+}
+if(type==="missions"){
+document.getElementById("panelTitle").textContent="🎯 CITY MISSIONS";
+renderMissions();
+}
+if(type==="bank"){
+document.getElementById("panelTitle").textContent="🏦 YOUR BANK";
+renderBank();
+}
+};
+
+window.closePanel=function(){
+document.getElementById("panel").style.display="none";
+};
+
+// CONTROLS
+const keys={up:false,down:false,left:false,right:false};
+
+document.querySelectorAll("[data-key]").forEach(btn=>{
+const dir=btn.dataset.key;
+btn.addEventListener("pointerdown",e=>{
+e.preventDefault();
+keys[dir]=true;
+});
+["pointerup","pointerleave","pointercancel"].forEach(ev=>{
+btn.addEventListener(ev,()=>keys[dir]=false);
+});
+});
+
+window.addEventListener("keydown",e=>{
+if(e.key==="ArrowUp"||e.key==="w")keys.up=true;
+if(e.key==="ArrowDown"||e.key==="s")keys.down=true;
+if(e.key==="ArrowLeft"||e.key==="a")keys.left=true;
+if(e.key==="ArrowRight"||e.key==="d")keys.right=true;
+});
+
+window.addEventListener("keyup",e=>{
+if(e.key==="ArrowUp"||e.key==="w")keys.up=false;
+if(e.key==="ArrowDown"||e.key==="s")keys.down=false;
+if(e.key==="ArrowLeft"||e.key==="a")keys.left=false;
+if(e.key==="ArrowRight"||e.key==="d")keys.right=false;
+});
+
+window.toggleCar=function(){
+if(!driving&&player.position.distanceTo(car.position)<12){
+driving=true;
+player.visible=false;
+say("You entered your "+selectedCar+"!");
+}else if(driving){
+driving=false;
+player.visible=true;
+player.position.copy(car.position);
+player.position.x+=5;
+say("You left your car!");
+}
+else say("Walk closer to your car!");
+document.getElementById("mode").textContent=driving?"🚗 DRIVING":"🚶 WALKING";
+};
+
+window.jump=function(){
+if(!driving){
+player.position.y=2.5;
+setTimeout(()=>player.position.y=0,350);
+}
+};
+
+window.toggleNight=function(){
+night=!night;
+scene.background=new THREE.Color(night?0x10172c:0x80c9ec);
+scene.fog.color.copy(scene.background);
+sun.intensity=night?0.25:1.4;
+say(night?"Lagos at night!":"Lagos daytime!");
+};
+
+window.resetGame=function(){
+driving=false;
+player.visible=true;
+player.position.set(0,0,25);
+car.position.set(7,0,20);
+say("Back to the starting point!");
+};
+
+// GAME LOOP
+function animate(){
+requestAnimationFrame(animate);
+
+if(driving){
+speed=fuel>0?(keys.up?0.55:keys.down?-0.3:0):0;
+if(speed!==0)fuel=Math.max(0,fuel-0.003);
+if(keys.left)car.rotation.y+=0.035;
+if(keys.right)car.rotation.y-=0.035;
+car.translateZ(-speed);
+}else{
+speed=keys.up?0.35:keys.down?-0.35:0;
+if(keys.left)player.rotation.y+=0.045;
+if(keys.right)player.rotation.y-=0.045;
+player.translateZ(-speed);
+legs.forEach((leg,i)=>{
+leg.rotation.x=speed!==0?Math.sin(Date.now()*0.012+i*3)*0.4:0;
+});
+}
+
+buses.forEach(bus=>{
+bus.position.z+=0.2;
+if(bus.position.z>100)bus.position.z=-180;
+});
+
+const target=driving?car:player;
+const offset=new THREE.Vector3(0,8,14);
+offset.applyAxisAngle(new THREE.Vector3(0,1,0),target.rotation.y);
+camera.position.lerp(target.position.clone().add(offset),0.08);
+camera.lookAt(target.position.x,target.position.y+1,target.position.z);
+
+document.getElementById("speed").textContent=
+"SPEED: "+Math.round(Math.abs(speed)*100)+" KM/H";
+document.getElementById("fuel").textContent=
+"⛽ FUEL: "+Math.floor(fuel)+"%";
+
+renderer.render(scene,camera);
+}
+
+camera.position.set(0,10,40);
+updateHUD();
+animate();
+
+window.addEventListener("resize",()=>{
+camera.aspect=innerWidth/innerHeight;
+camera.updateProjectionMatrix();
+renderer.setSize(innerWidth,innerHeight);
+});
+
+})();
+</script>
+</body>
+</html>
