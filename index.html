@@ -1,0 +1,238 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>LAGOS LIFE 3D</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden;background:#87ceeb;font-family:Arial,sans-serif}
+canvas{display:block}
+#hud{position:fixed;top:12px;left:12px;color:white;background:#111c;padding:12px;border-radius:12px;font-size:13px;z-index:5}
+#phoneBtn{position:fixed;right:14px;top:14px;background:#171717;color:white;border:2px solid white;border-radius:18px;padding:13px;font-size:17px;z-index:10}
+#phone{display:none;position:fixed;right:10px;top:65px;bottom:12px;width:min(350px,94vw);background:#101827;color:white;border:3px solid #65748b;border-radius:25px;padding:15px;z-index:20;overflow:auto;box-shadow:0 5px 30px #0009}
+#phone h2{margin:5px 0 12px}
+#phone button{background:#263b59;color:white;border:1px solid #617b9c;border-radius:12px;padding:12px;margin:4px;min-height:44px}
+#phone button:active,#controls button:active{background:#087cbd}
+#apps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.app{min-height:82px!important;font-size:13px}
+#page{margin-top:12px;background:#1c293b;border-radius:15px;padding:12px;min-height:150px}
+#page button{width:100%;margin:5px 0;text-align:left}
+#close{float:right;background:#9b2929!important}
+#controls{position:fixed;left:12px;bottom:15px;z-index:8;display:grid;grid-template-columns:repeat(3,53px);gap:5px}
+#controls button{height:48px;background:#111b;color:white;border:1px solid #aaa;border-radius:12px;font-size:19px}
+#driveBtn{position:fixed;right:15px;bottom:22px;z-index:8;background:#111d;color:white;border:1px solid white;border-radius:14px;padding:15px}
+#hint{position:fixed;bottom:100px;left:12px;color:white;background:#111a;padding:7px;border-radius:8px;font-size:12px}
+#toast{position:fixed;top:75px;left:50%;transform:translateX(-50%);background:#111;color:white;padding:12px 18px;border-radius:12px;z-index:40;display:none}
+</style>
+</head>
+<body>
+<div id="hud">
+<b>🌆 LAGOS LIFE 3D</b><br>
+₦<span id="money">50000000</span><br>
+<span id="mode">Walking</span>
+</div>
+<button id="phoneBtn">📱 PHONE</button>
+<div id="phone">
+<button id="close">CLOSE ✕</button>
+<h2>📱 My Smartphone</h2>
+<div id="apps">
+<button class="app" onclick="openApp('bank')">🏦<br>Bank</button>
+<button class="app" onclick="openApp('invest')">📈<br>Invest</button>
+<button class="app" onclick="openApp('garage')">🚘<br>Garage</button>
+<button class="app" onclick="openApp('map')">🗺️<br>Map</button>
+<button class="app" onclick="openApp('shop')">🛍️<br>Shop</button>
+<button class="app" onclick="openApp('property')">🏠<br>Property</button>
+<button class="app" onclick="openApp('missions')">🎯<br>Missions</button>
+<button class="app" onclick="openApp('profile')">👤<br>Profile</button>
+<button class="app" onclick="openApp('help')">❓<br>Help</button>
+</div>
+<div id="page">Welcome to Lagos Life! Choose an app above.</div>
+</div>
+<div id="controls">
+<div></div><button data-move="forward">▲</button><div></div>
+<button data-move="left">◀</button><button data-move="back">▼</button><button data-move="right">▶</button>
+</div>
+<div id="hint">Use arrows to move. Walk close to your car and press DRIVE.</div>
+<button id="driveBtn">🚗 DRIVE</button>
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let money=50000000, owned=["Bugatti Chiron"], selected="Bugatti Chiron";
+let investments=[], items=[], properties=[];
+let scene,camera,renderer,player,car,carBody;
+let driving=false, speed=0, direction=0;
+let keys={forward:false,back:false,left:false,right:false};
+const cars=[
+["Bugatti Chiron",0,"🏎️"],
+["Lamborghini Aventador",180000000,"🏎️"],
+["Ferrari 488",150000000,"🏎️"],
+["McLaren 720S",170000000,"🏎️"],
+["Porsche 911",95000000,"🚘"],
+["Nissan GT-R",75000000,"🚘"],
+["Mercedes AMG GT",125000000,"🚘"]
+];
+const places={
+"Victoria Island":[25,0,0],
+"Lekki":[55,0,-25],
+"Ikeja":[-45,0,-30],
+"Airport":[-65,0,40],
+"Marina":[0,0,55],
+"Stadium":[45,0,55]
+};
+function updateMoney(){$("money").textContent=money.toLocaleString("en-NG")}
+function toast(s){$("toast").textContent=s;$("toast").style.display="block";setTimeout(()=>$("toast").style.display="none",2200)}
+function spend(n){if(money<n){toast("Not enough game money!");return false}money-=n;updateMoney();return true}
+function earn(n){money+=n;updateMoney()}
+function openApp(app){
+let p=$("page"),html="";
+if(app==="bank"){
+html=`<h3>🏦 LAGOS BANK</h3><p>Account balance: ₦${money.toLocaleString()}</p><p>Welcome to your virtual bank.</p><button onclick="earn(1000000);openApp('bank')">Collect daily game reward: ₦1,000,000</button>`;
+}
+if(app==="invest"){
+html="<h3>📈 INVESTMENT CENTRE</h3><p>Choose an investment. These are fictional game investments.</p>";
+[["Small business",5000000,7500000],["Real estate fund",15000000,22000000],["Tech company",10000000,14500000]].forEach((x,i)=>html+=`<button onclick="invest(${i})">${x[0]} — Invest ₦${x[1].toLocaleString()}<br>Game return: ₦${x[2].toLocaleString()}</button>`);
+html+="<p>Returns are virtual game rewards, not real financial investments.</p>";
+}
+if(app==="garage"){
+html="<h3>🚘 CAR DEALERSHIP</h3><p>Buy or select your car.</p>";
+cars.forEach(c=>html+=`<button onclick="buyCar('${c[0]}',${c[1]})">${c[2]} ${c[0]} — ${c[1]===0?"FREE":"₦"+c[1].toLocaleString()} ${owned.includes(c[0])?"(OWNED)":" "}</button>`);
+html+=`<p>Selected car: ${selected}</p><button onclick="spawnCar()">Bring my car here</button>`;
+}
+if(app==="map"){
+html="<h3>🗺️ LAGOS CITY MAP</h3><p>Travel to a destination:</p>";
+Object.keys(places).forEach(n=>html+=`<button onclick="travel('${n}')">📍 ${n}</button>`);
+}
+if(app==="shop"){
+html="<h3>🛍️ CITY SHOP</h3>";
+[["Fresh outfit",250000],["Luxury watch",1200000],["New smartphone",900000],["Designer shoes",400000],["Gaming laptop",2500000],["Food and drinks",50000]].forEach(x=>html+=`<button onclick="buyItem('${x[0]}',${x[1]})">${x[0]} — ₦${x[1].toLocaleString()}</button>`);
+html+=`<p>Items owned: ${items.join(", ")||"None yet"}</p>`;
+}
+if(app==="property"){
+html="<h3>🏠 PROPERTY MARKET</h3>";
+[["Lekki apartment",25000000],["Victoria Island house",80000000],["Ikeja mansion",120000000]].forEach(x=>html+=`<button onclick="buyProperty('${x[0]}',${x[1]})">${x[0]} — ₦${x[1].toLocaleString()}</button>`);
+html+=`<p>Owned: ${properties.join(", ")||"No properties yet"}</p>`;
+}
+if(app==="missions"){
+html=`<h3>🎯 MISSIONS</h3><p>Complete missions to earn game money.</p><button onclick="mission('visit')">Visit another part of Lagos — ₦500,000</button><button onclick="mission('car')">Bring your car into the city — ₦750,000</button><button onclick="mission('walk')">Explore Lagos on foot — ₦250,000</button>`;
+}
+if(app==="profile"){
+html=`<h3>👤 PLAYER PROFILE</h3><p>City: Lagos</p><p>Money: ₦${money.toLocaleString()}</p><p>Selected car: ${selected}</p><p>Cars owned: ${owned.length}</p><p>Properties: ${properties.length}</p>`;
+}
+if(app==="help")html="<h3>❓ HOW TO PLAY</h3><p>Use the arrow buttons to walk. Press DRIVE to enter or leave your car. Open your phone to use the apps. Use the map to travel around the city.</p>";
+p.innerHTML=html;
+}
+function invest(i){
+let a=[["Small business",5000000,7500000],["Real estate fund",15000000,22000000],["Tech company",10000000,14500000]][i];
+if(spend(a[1])){earn(a[2]);investments.push(a[0]);toast("Investment completed! Game reward added.");openApp("invest")}
+}
+function buyCar(n,cost){
+if(owned.includes(n)){selected=n;toast(n+" selected");openApp("garage");return}
+if(spend(cost)){owned.push(n);selected=n;toast("Car purchased!");openApp("garage")}
+}
+function buyItem(n,c){if(spend(c)){items.push(n);toast(n+" purchased!");openApp("shop")}}
+function buyProperty(n,c){if(properties.includes(n)){toast("You already own this property");return}if(spend(c)){properties.push(n);toast("Property purchased!");openApp("property")}}
+function mission(t){
+if(t==="visit"&&player.position.lengthSq()<300){toast("Travel farther first!");return}
+if(t==="car"&&!driving){toast("Enter your car first!");return}
+if(t==="walk"&&driving){toast("Get out and walk first!");return}
+earn(t==="visit"?500000:t==="car"?750000:250000);toast("Mission complete! Reward collected.")
+}
+function travel(n){
+let pos=places[n];player.position.set(pos[0],1,pos[2]);if(car)car.position.set(pos[0]+4,0,pos[2]);
+driving=false;speed=0;$("mode").textContent="Walking";$("phone").style.display="none";toast("Welcome to "+n+"!");
+}
+function makeBuilding(x,z,w,h,d,color){
+let b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color}));
+b.position.set(x,h/2,z);scene.add(b);
+for(let y=3;y<h-1;y+=3)for(let xx=-w/2+1;xx<w/2-0.5;xx+=2.5){
+let win=new THREE.Mesh(new THREE.BoxGeometry(1.1,1.2,.08),new THREE.MeshBasicMaterial({color:0x9de6ff}));
+win.position.set(x+xx,y,z-d/2-.05);scene.add(win);
+}
+}
+function makeCar(){
+let group=new THREE.Group();
+let body=new THREE.Mesh(new THREE.BoxGeometry(2.8,.8,5),new THREE.MeshLambertMaterial({color:0x071dce}));
+body.position.y=.8;group.add(body);
+let top=new THREE.Mesh(new THREE.BoxGeometry(2,0.8,2.3),new THREE.MeshLambertMaterial({color:0x182c55}));
+top.position.set(0,1.5,-.3);group.add(top);
+for(let x of [-1.4,1.4])for(let z of [-1.6,1.6]){
+let wheel=new THREE.Mesh(new THREE.CylinderGeometry(.45,.45,.25,12),new THREE.MeshLambertMaterial({color:0x111111}));
+wheel.rotation.z=Math.PI/2;wheel.position.set(x,.45,z);group.add(wheel);
+}
+scene.add(group);return group;
+}
+function init(){
+if(!window.THREE){document.body.innerHTML="Three.js could not load. Check your internet connection and refresh.";return}
+scene=new THREE.Scene();scene.background=new THREE.Color(0x8bc9ed);
+scene.fog=new THREE.Fog(0x8bc9ed,100,260);
+camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,500);
+renderer=new THREE.WebGLRenderer({antialias:false});
+renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(1);document.body.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff,0x53634a,2));
+let sun=new THREE.DirectionalLight(0xffffff,1.2);sun.position.set(40,80,30);scene.add(sun);
+let ground=new THREE.Mesh(new THREE.PlaneGeometry(500,500),new THREE.MeshLambertMaterial({color:0x4e9952}));
+ground.rotation.x=-Math.PI/2;scene.add(ground);
+let roadmat=new THREE.MeshLambertMaterial({color:0x33383d});
+function road(x,z,w,d){let r=new THREE.Mesh(new THREE.BoxGeometry(w,.08,d),roadmat);r.position.set(x,.04,z);scene.add(r)}
+road(0,0,500,18);road(0,0,18,500);road(45,40,12,180);road(-55,-20,12,180);
+let lineMat=new THREE.MeshBasicMaterial({color:0xffffff});
+for(let i=-230;i<240;i+=12){let l=new THREE.Mesh(new THREE.BoxGeometry(5,.1,.25),lineMat);l.position.set(i,.12,0);scene.add(l)}
+for(let i=-230;i<240;i+=12){let l=new THREE.Mesh(new THREE.BoxGeometry(.25,.1,5),lineMat);l.position.set(0,.12,i);scene.add(l)}
+for(let x=-100;x<=100;x+=25)for(let z=-100;z<=100;z+=25){
+if(Math.abs(x)<15||Math.abs(z)<15)continue;
+makeBuilding(x,z,12+Math.random()*7,8+Math.random()*35,12, [0xb4a18d,0x9ba9b4,0xc5c3b9,0x7d929b][Math.floor(Math.random()*4)]);
+}
+player=new THREE.Group();
+let body=new THREE.Mesh(new THREE.BoxGeometry(.8,1.5,.5),new THREE.MeshLambertMaterial({color:0x1747bb}));body.position.y=1;player.add(body);
+let head=new THREE.Mesh(new THREE.SphereGeometry(.35,12,12),new THREE.MeshLambertMaterial({color:0xb8794d}));head.position.y=2;player.add(head);
+scene.add(player);player.position.set(0,0,8);
+car=makeCar();car.position.set(5,0,5);
+let sign=new THREE.Mesh(new THREE.BoxGeometry(10,5,.5),new THREE.MeshLambertMaterial({color:0x164b3b}));
+sign.position.set(20,4,-30);scene.add(sign);
+camera.position.set(0,6,15);
+}
+function spawnCar(){car.position.set(player.position.x+3,0,player.position.z);car.rotation.y=player.rotation.y;toast("Your car is ready!");$("phone").style.display="none"}
+function animate(){
+requestAnimationFrame(animate);
+if(player&&car){
+let move=0,turn=0;
+if(keys.forward)move=1;if(keys.back)move=-1;if(keys.left)turn=1;if(keys.right)turn=-1;
+if(driving){
+speed+=(move*.012);speed*=.96;direction+=turn*.035;
+car.rotation.y=direction;car.translateZ(-speed*2.5);
+player.position.set(car.position.x,0,car.position.z);
+player.rotation.y=car.rotation.y;
+}else{
+if(move||turn){player.rotation.y+=turn*.055;player.translateZ(-move*.18)}
+}
+let target=driving?car:player;
+let behind=new THREE.Vector3(0,5,9).applyAxisAngle(new THREE.Vector3(0,1,0),target.rotation.y);
+camera.position.lerp(new THREE.Vector3(target.position.x+behind.x,target.position.y+behind.y,target.position.z+behind.z),.12);
+camera.lookAt(target.position.x,target.position.y+1,target.position.z);
+}
+renderer.render(scene,camera);
+}
+$("phoneBtn").onclick=()=>$("phone").style.display="block";
+$("close").onclick=()=>$("phone").style.display="none";
+$("driveBtn").onclick=()=>{
+if(!driving){
+if(player.position.distanceTo(car.position)>9){toast("Walk closer to your car first!");return}
+driving=true;direction=car.rotation.y;$("mode").textContent="Driving";toast("You entered your car!");
+}else{driving=false;player.position.x+=3;$("mode").textContent="Walking";speed=0;toast("You left the car")}
+};
+document.querySelectorAll("[data-move]").forEach(b=>{
+let k=b.dataset.move;
+b.addEventListener("pointerdown",e=>{e.preventDefault();keys[k]=true});
+["pointerup","pointerleave","pointercancel"].forEach(ev=>b.addEventListener(ev,()=>keys[k]=false));
+});
+addEventListener("keydown",e=>{if(e.key==="ArrowUp"||e.key==="w")keys.forward=true;if(e.key==="ArrowDown"||e.key==="s")keys.back=true;if(e.key==="ArrowLeft"||e.key==="a")keys.left=true;if(e.key==="ArrowRight"||e.key==="d")keys.right=true});
+addEventListener("keyup",e=>{if(e.key==="ArrowUp"||e.key==="w")keys.forward=false;if(e.key==="ArrowDown"||e.key==="s")keys.back=false;if(e.key==="ArrowLeft"||e.key==="a")keys.left=false;if(e.key==="ArrowRight"||e.key==="d")keys.right=false});
+addEventListener("resize",()=>{if(!camera)return;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+try{init();updateMoney();animate()}catch(e){document.body.innerHTML="Game error: "+e.message+"<br>Please check the code in index.html."}
+</script>
+</body>
+</html>
