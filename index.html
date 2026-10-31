@@ -1,0 +1,413 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Lagos Life</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#111d35;color:white;font-family:Arial,sans-serif;overflow:hidden}
+canvas{width:100vw;height:100vh;display:block;touch-action:none}
+button{border:0;border-radius:22px;padding:11px;background:#172d40;color:white;font-weight:bold}
+#top{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between}
+.pill{background:#142637ee;padding:12px 15px;border-radius:25px;font-weight:bold}
+#banner{position:absolute;top:65px;left:12px;right:12px;padding:12px;background:#142637ee;border-radius:17px}
+#banner small{display:block;color:#a9bdc7;margin-top:4px}
+#status{position:absolute;bottom:83px;left:12px;display:flex;gap:8px;align-items:center}
+#energy{background:#172b3c;padding:12px;border-radius:22px;color:#ffc35a}
+#controls{position:absolute;right:10px;bottom:90px;display:flex;flex-direction:column;gap:7px;align-items:center}
+#controls button{min-width:90px}
+#bottom{position:absolute;bottom:12px;left:12px;right:12px;display:flex;justify-content:space-around;background:#142735f2;border-radius:30px;padding:5px}
+#bottom button{background:transparent;font-size:21px}
+#bottom button.active{color:#43d6a3;background:#104239}
+#toast{display:none;position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);background:#12352fee;border:1px solid #43d6a3;border-radius:15px;padding:13px 18px;z-index:40;text-align:center;width:max-content;max-width:85%}
+.overlay{display:none;position:absolute;inset:0;background:#06101dcc;z-index:20;align-items:center;justify-content:center;padding:12px}
+.panel{width:min(390px,96vw);max-height:88vh;overflow:auto;background:#172b3b;border-radius:25px;padding:20px;box-shadow:0 15px 45px #0009}
+.panel h2{margin-top:4px}
+.item{display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid #ffffff22;padding:12px 0}
+.item button{background:#0caa78}
+.close{float:right;background:#344657}
+#phoneScreen{width:min(390px,95vw);height:min(740px,94vh);overflow:auto;border:7px solid #d6c4a3;border-radius:43px;background:linear-gradient(155deg,#00644a,#078d62 50%,#d6efdc);padding:20px 15px}
+.clock{font-size:53px;font-weight:800;margin:35px 0 0 8px}
+.apps{display:grid;grid-template-columns:repeat(4,1fr);gap:17px 7px;margin-top:20px}
+.app{background:transparent;padding:0;text-align:center;font-size:12px}
+.appicon{width:60px;height:60px;margin:auto auto 5px;border-radius:18px;background:linear-gradient(140deg,#4bdeb1,#078a70);display:grid;place-items:center;font-size:28px}
+.app:nth-child(4n+2) .appicon{background:linear-gradient(140deg,#6db8ff,#2858db)}
+.app:nth-child(4n+3) .appicon{background:linear-gradient(140deg,#30364e,#050914)}
+.app:nth-child(4n) .appicon{background:linear-gradient(140deg,#76e5df,#148a9c)}
+.appname{background:#173c36c9;padding:3px 4px;border-radius:6px}
+</style>
+</head>
+<body>
+
+<canvas id="world"></canvas>
+
+<div id="top">
+ <div class="pill">☾ 9:05 PM ☻</div>
+ <div class="pill">₦<span id="cash">5.60</span>B</div>
+</div>
+
+<div id="banner">🟢 <b>Independence · Tier 12</b><small>7 rewards ready　 ◷ 30d</small></div>
+
+<div id="status">
+ <div style="font-size:30px">🧑🏽</div>
+ <div id="energy">⚡ <span id="energyNum">43</span>%</div>
+</div>
+
+<div id="controls">
+ <button id="move">⬆ Move</button>
+ <button id="left">⬅ Left</button>
+ <button id="right">➡ Right</button>
+ <button id="buyBtn">🛒 BUY</button>
+ <button id="phoneBtn">📱 Phone</button>
+ <button id="radio">📻 Radio</button>
+ <button id="outside">🚪 Outside</button>
+</div>
+
+<div id="bottom">
+ <button id="homeTab" class="active">⌂</button>
+ <button id="carTab">🚘</button>
+ <button id="mapTab">▱</button>
+</div>
+
+<div id="toast"></div>
+
+<!-- FURNITURE SHOP -->
+<div id="shop" class="overlay">
+ <div class="panel">
+  <button class="close" onclick="closePanel('shop')">✕</button>
+  <h2>🛒 Home Furniture Shop</h2>
+  <p>Wallet: ₦<span id="shopMoney">5.60</span>B</p>
+  <div id="shopItems"></div>
+ </div>
+</div>
+
+<!-- PHONE -->
+<div id="phone" class="overlay">
+ <div id="phoneScreen">
+  <button class="close" onclick="closePanel('phone')">✕ Close</button>
+  <div style="font-weight:bold">9:05 PM　 ••• 4G ▰</div>
+  <div class="clock">9:05</div>
+  <p>Saturday 31 October · Lagos</p>
+  <div style="background:#ffffff38;padding:12px;border-radius:25px">☀️ Day mode</div>
+  <div style="background:#ffffff38;padding:12px;border-radius:25px;margin-top:12px">⌕ Search apps</div>
+  <div class="apps">
+   <button class="app" data-app="Jobs"><div class="appicon">💼</div><span class="appname">Jobs</span></button>
+   <button class="app" data-app="Messages"><div class="appicon">💬</div><span class="appname">Messages</span></button>
+   <button class="app" data-app="Games"><div class="appicon">🎱</div><span class="appname">Games</span></button>
+   <button class="app" data-app="Support"><div class="appicon">🎧</div><span class="appname">Support</span></button>
+   <button class="app" data-app="Tickets"><div class="appicon">🎟️</div><span class="appname">Tickets</span></button>
+   <button class="app" data-app="Hobbies"><div class="appicon">🎨</div><span class="appname">Hobbies</span></button>
+   <button class="app" data-app="Mini Games"><div class="appicon">🎮</div><span class="appname">Games</span></button>
+   <button class="app" data-app="Health"><div class="appicon">✚</div><span class="appname">Health</span></button>
+   <button class="app" data-app="Salary"><div class="appicon">💵</div><span class="appname">Salary</span></button>
+   <button class="app" data-app="Movies"><div class="appicon">🎬</div><span class="appname">Movies</span></button>
+   <button class="app" data-app="Football"><div class="appicon">⚽</div><span class="appname">Football</span></button>
+   <button class="app" data-app="Style"><div class="appicon">👕</div><span class="appname">Style</span></button>
+   <button class="app" data-app="Website"><div class="appicon">🌐</div><span class="appname">Website</span></button>
+   <button class="app" data-app="Voice"><div class="appicon">🎙️</div><span class="appname">Voice</span></button>
+   <button class="app" data-app="Sports"><div class="appicon">🏟️</div><span class="appname">Sports</span></button>
+   <button class="app" data-app="Events"><div class="appicon">🎉</div><span class="appname">Events</span></button>
+  </div>
+ </div>
+</div>
+
+<!-- APP WINDOW -->
+<div id="appModal" class="overlay">
+ <div class="panel" style="text-align:center">
+  <h2 id="appTitle"></h2>
+  <p id="appText"></p>
+  <button onclick="closePanel('appModal')">Okay</button>
+ </div>
+</div>
+
+<script>
+const canvas=document.getElementById('world');
+const ctx=canvas.getContext('2d');
+
+let outside=false;
+let car=false;
+let energy=43;
+let money=5.60;
+let player={x:0,y:0};
+let furniture=[];
+
+const items=[
+ {name:'Luxury Sofa',emoji:'🛋️',price:.05,type:'sofa'},
+ {name:'King Bed',emoji:'🛏️',price:.08,type:'bed'},
+ {name:'Smart TV',emoji:'📺',price:.04,type:'tv'},
+ {name:'Dining Table',emoji:'🪑',price:.03,type:'table'},
+ {name:'Refrigerator',emoji:'🧊',price:.06,type:'fridge'},
+ {name:'Kitchen Cooker',emoji:'🍳',price:.04,type:'cooker'},
+ {name:'Wardrobe',emoji:'🚪',price:.05,type:'wardrobe'},
+ {name:'Carpet',emoji:'🟫',price:.02,type:'carpet'},
+ {name:'Indoor Plant',emoji:'🪴',price:.01,type:'plant'},
+ {name:'Bookshelf',emoji:'📚',price:.03,type:'shelf'},
+ {name:'Wall Painting',emoji:'🖼️',price:.02,type:'painting'},
+ {name:'Chandelier',emoji:'💡',price:.03,type:'light'},
+ {name:'Office Desk',emoji:'🖥️',price:.04,type:'desk'},
+ {name:'Bathroom Sink',emoji:'🚰',price:.02,type:'sink'}
+];
+
+function resize(){
+ canvas.width=innerWidth*devicePixelRatio;
+ canvas.height=innerHeight*devicePixelRatio;
+ ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+ draw();
+}
+addEventListener('resize',resize);
+
+function poly(points,color,stroke){
+ ctx.beginPath();
+ points.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));
+ ctx.closePath();ctx.fillStyle=color;ctx.fill();
+ if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=2;ctx.stroke();}
+}
+function rect(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(x,y,w,h)}
+function ellipse(x,y,rx,ry,c){
+ ctx.fillStyle=c;ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fill();
+}
+function line(x,y,x2,y2,c,w=2){
+ ctx.strokeStyle=c;ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x2,y2);ctx.stroke();
+}
+function label(t,x,y,size=10,color='#fff'){
+ ctx.fillStyle=color;ctx.font=`bold ${size}px Arial`;ctx.fillText(t,x,y);
+}
+function iso(x,y){
+ return [innerWidth/2+(x-y)*.72,innerHeight*.52+(x+y)*.34];
+}
+function room(x,y,w,h,name){
+ let a=iso(x,y),b=iso(x+w,y),c=iso(x+w,y+h),d=iso(x,y+h);
+ poly([a,b,c,d],'#bd9279','#714e40');
+ poly([[a[0],a[1]-25],[b[0],b[1]-25],[c[0],c[1]-25],[d[0],d[1]-25]],'#dfb89b','#875e4d');
+ line(a[0],a[1]-25,d[0],d[1]-25,'#f5d2b5',3);
+ label(name,(a[0]+c[0])/2-22,(a[1]+c[1])/2-16,10,'#fff0dc');
+}
+function tree(x,y){
+ let p=iso(x,y);
+ rect(p[0]-2,p[1]-3,5,20,'#704b32');
+ ellipse(p[0],p[1]-12,13,12,'#236b42');
+ ellipse(p[0]-7,p[1]-17,8,8,'#348b4d');
+}
+function drawFurniture(item,x,y){
+ let p=iso(x,y);
+ switch(item.type){
+ case 'sofa':
+  poly([[p[0]-28,p[1]-17],[p[0]+15,p[1]-3],[p[0]+15,p[1]+13],[p[0]-28,p[1]-1]],'#263e68','#17243b');
+  rect(p[0]-27,p[1]-12,8,15,'#344e78');
+  break;
+ case 'bed':
+  poly([[p[0]-25,p[1]-15],[p[0]+20,p[1]],[p[0]+20,p[1]+13],[p[0]-25,p[1]-2]],'#557caa','#e7d4bc');
+  rect(p[0]-22,p[1]-12,15,7,'#f4e8d7');
+  break;
+ case 'tv':
+  rect(p[0]-20,p[1]-25,40,24,'#151a23');
+  rect(p[0]-17,p[1]-22,34,18,'#57a5ba');
+  rect(p[0]-13,p[1]-1,26,5,'#4c4035');
+  break;
+ case 'table':
+  poly([[p[0]-23,p[1]-13],[p[0]+20,p[1]],[p[0]-3,p[1]+13],[p[0]-45,p[1]-1]],'#875b35','#513a2a');
+  line(p[0]-20,p[1]+0,p[0]-20,p[1]+19,'#513a2a',3);
+  line(p[0]+5,p[1]+8,p[0]+5,p[1]+25,'#513a2a',3);
+  break;
+ case 'fridge':
+  rect(p[0]-13,p[1]-39,26,40,'#d8e4e4');
+  line(p[0]-13,p[1]-19,p[0]+13,p[1]-19,'#899a9b');
+  break;
+ case 'cooker':
+  rect(p[0]-17,p[1]-20,34,20,'#34363a');
+  for(let i=0;i<2;i++)ellipse(p[0]-8+i*16,p[1]-15,4,4,'#b7c4c3');
+  break;
+ case 'wardrobe':
+  rect(p[0]-19,p[1]-38,38,38,'#81563a');
+  line(p[0],p[1]-38,p[0],p[1],'#d2a276');
+  break;
+ case 'carpet':
+  poly([[p[0]-28,p[1]-5],[p[0]+12,p[1]+8],[p[0]-8,p[1]+20],[p[0]-48,p[1]+6]],'#40352d','#c7aa7b');
+  break;
+ case 'plant':
+  rect(p[0]-5,p[1]-3,10,12,'#965c36');
+  ellipse(p[0],p[1]-12,12,13,'#23834b');
+  break;
+ case 'shelf':
+  rect(p[0]-20,p[1]-32,40,32,'#69472f');
+  for(let i=0;i<3;i++)rect(p[0]-15+i*12,p[1]-27,7,10,['#c64d43','#e3c36a','#4f9eaa'][i]);
+  break;
+ case 'painting':
+  rect(p[0]-17,p[1]-37,34,25,'#8e6546');
+  rect(p[0]-13,p[1]-33,26,17,'#5fabb1');
+  break;
+ case 'light':
+  line(p[0],p[1]-42,p[0],p[1]-24,'#eee0ac');
+  ellipse(p[0],p[1]-20,10,6,'#ffe7a0');
+  break;
+ case 'desk':
+  rect(p[0]-24,p[1]-15,48,7,'#805333');
+  rect(p[0]-20,p[1]-8,4,18,'#513a2a');
+  rect(p[0]+15,p[1]-8,4,18,'#513a2a');
+  rect(p[0]-9,p[1]-34,19,17,'#202b39');
+  break;
+ case 'sink':
+  rect(p[0]-17,p[1]-17,34,17,'#d7e5e6');
+  ellipse(p[0],p[1]-17,11,5,'#f7ffff');
+  break;
+ }
+}
+function house(){
+ rect(0,0,innerWidth,innerHeight,'#626e49');
+ poly([[innerWidth*.07,innerHeight*.44],[innerWidth*.54,innerHeight*.21],[innerWidth*.95,innerHeight*.43],[innerWidth*.48,innerHeight*.69]],'#9c765c','#654b3d');
+
+ // Empty rooms at the start
+ room(-260,-100,170,110,'LIVING ROOM');
+ room(-90,-100,160,110,'LOUNGE');
+ room(70,-100,165,110,'KITCHEN');
+ room(-260,10,170,110,'BEDROOM');
+ room(-90,10,160,110,'DINING');
+ room(70,10,165,110,'BEDROOM');
+
+ // Windows
+ for(let i=0;i<7;i++){
+  let p=iso(-230+i*65,-100);
+  rect(p[0],p[1]-30,12,17,'#8bd4e3');
+  line(p[0]+6,p[1]-30,p[0]+6,p[1]-13,'#fff',2);
+ }
+ // Doors
+ for(let i=0;i<6;i++){
+  let p=iso(-210+i*80,5);
+  rect(p[0],p[1]-17,13,24,'#70452e');
+ }
+ // Purchased furniture
+ furniture.forEach(item=>drawFurniture(item.item,item.x,item.y));
+
+ // Garden and driveway
+ for(let i=0;i<5;i++)tree(-240+i*115,145);
+ poly([[innerWidth*.26,innerHeight*.72],[innerWidth*.68,innerHeight*.72],[innerWidth*.82,innerHeight*.83],[innerWidth*.4,innerHeight*.83]],'#777064','#c2aa8c');
+ for(let i=0;i<3;i++){
+  let x=innerWidth*.36+i*innerWidth*.13;
+  rect(x,innerHeight*.75,innerWidth*.085,innerHeight*.045,'#292e31');
+  line(x,innerHeight*.78,x+innerWidth*.085,innerHeight*.78,'#858585',2);
+ }
+}
+function city(){
+ rect(0,0,innerWidth,innerHeight,'#65764f');
+ poly([[0,innerHeight*.72],[innerWidth,innerHeight*.58],[innerWidth,innerHeight*.77],[0,innerHeight*.91]],'#363c42');
+ for(let i=0;i<7;i++)line(i*innerWidth*.19,innerHeight*.77,i*innerWidth*.19+65,innerHeight*.76,'#e7d7a1',2);
+ for(let i=0;i<9;i++){
+  let x=(i%3)*innerWidth*.32+5,y=Math.floor(i/3)*innerHeight*.17+innerHeight*.23;
+  poly([[x,y],[x+65,y-30],[x+130,y],[x+65,y+30]],'#c6a77d');
+  poly([[x,y],[x+65,y+30],[x+65,y+90],[x,y+60]],'#92755b');
+  poly([[x+65,y+30],[x+130,y],[x+130,y+60],[x+65,y+90]],'#6d5949');
+  for(let k=0;k<3;k++)rect(x+12+k*18,y+36,9,15,'#91c5c9');
+ }
+ for(let i=0;i<5;i++)tree(-230+i*110,145);
+}
+function draw(){
+ ctx.clearRect(0,0,innerWidth,innerHeight);
+ if(outside)city();else house();
+ let p=iso(player.x,player.y);
+ if(car){
+  poly([[p[0]-31,p[1]-9],[p[0]-18,p[1]-24],[p[0]+18,p[1]-24],[p[0]+32,p[1]-9],[p[0]+28,p[1]+3],[p[0]-27,p[1]+3]],'#d52c3b','#ffb5a0');
+  poly([[p[0]-14,p[1]-21],[p[0]+13,p[1]-21],[p[0]+21,p[1]-10],[p[0]-22,p[1]-10]],'#8bd1d8');
+  ellipse(p[0]-18,p[1]+3,6,6,'#111923');ellipse(p[0]+20,p[1]+3,6,6,'#111923');
+ }else{
+  ellipse(p[0],p[1],12,5,'#30382a');
+  ellipse(p[0],p[1]-26,8,8,'#b9805d');
+  rect(p[0]-7,p[1]-20,14,20,'#f1f1e9');
+  ellipse(p[0],p[1]-33,8,4,'#20212a');
+ }
+}
+function say(s){
+ const el=document.getElementById('toast');
+ el.textContent=s;el.style.display='block';
+ clearTimeout(say.timer);
+ say.timer=setTimeout(()=>el.style.display='none',2300);
+}
+function move(dx,dy){
+ if(energy<=0){say('You are tired. Rest at home.');return}
+ player.x=Math.max(-230,Math.min(230,player.x+dx));
+ player.y=Math.max(-80,Math.min(170,player.y+dy));
+ energy=Math.max(0,energy-1);
+ document.getElementById('energyNum').textContent=energy;
+ draw();
+}
+function closePanel(id){document.getElementById(id).style.display='none'}
+
+function showShop(){
+ if(outside){say('Go inside your house to buy furniture.');return}
+ renderShop();
+ document.getElementById('shop').style.display='flex';
+}
+function renderShop(){
+ document.getElementById('shopMoney').textContent=money.toFixed(2);
+ const list=document.getElementById('shopItems');
+ list.innerHTML='';
+ items.forEach((item,index)=>{
+  const row=document.createElement('div');
+  row.className='item';
+  const info=document.createElement('div');
+  info.innerHTML='<b>'+item.emoji+' '+item.name+'</b><br><small>₦'+item.price.toFixed(2)+'B</small>';
+  const buy=document.createElement('button');
+  buy.textContent='BUY';
+  buy.onclick=()=>buyItem(index);
+  row.append(info,buy);
+  list.appendChild(row);
+ });
+}
+function buyItem(index){
+ const item=items[index];
+ if(money<item.price){say('Not enough money!');return}
+ money=+(money-item.price).toFixed(2);
+ // Put purchased furniture in its room, using a different position each time
+ const positions=[
+  [-220,-55],[-130,-55],[100,-55],[-220,60],[-10,60],[150,60],
+  [-180,-5],[-80,-5],[30,-5],[170,-5],[-150,100],[70,100]
+ ];
+ const pos=positions[furniture.length%positions.length];
+ furniture.push({item:item,x:pos[0],y:pos[1]});
+ document.getElementById('cash').textContent=money.toFixed(2);
+ renderShop();
+ draw();
+ say(item.name+' bought and placed in your house!');
+}
+document.getElementById('buyBtn').onclick=showShop;
+document.getElementById('move').onclick=()=>move(0,-18);
+document.getElementById('left').onclick=()=>move(-18,0);
+document.getElementById('right').onclick=()=>move(18,0);
+document.getElementById('outside').onclick=()=>{
+ outside=!outside;car=false;
+ document.getElementById('outside').textContent=outside?'🏠 Go Home':'🚪 Outside';
+ draw();say(outside?'Welcome to Lagos!':'Welcome home!');
+};
+document.getElementById('homeTab').onclick=()=>{
+ outside=false;car=false;
+ document.getElementById('outside').textContent='🚪 Outside';
+ draw();say('You are home');
+};
+document.getElementById('carTab').onclick=()=>{
+ if(!outside){say('Go outside to use your car.');return}
+ car=!car;draw();say(car?'You entered your car!':'You left your car.');
+};
+document.getElementById('mapTab').onclick=()=>say('Lagos map: Ikeja · Lekki · Victoria Island');
+document.getElementById('phoneBtn').onclick=()=>document.getElementById('phone').style.display='flex';
+document.getElementById('radio').onclick=()=>say('📻 Lagos Life FM is on!');
+document.querySelectorAll('.app').forEach(btn=>btn.onclick=()=>{
+ const name=btn.dataset.app;
+ document.getElementById('appTitle').textContent=name;
+ document.getElementById('appText').textContent=name+' app opened. Explore your Lagos Life activities here.';
+ document.getElementById('appModal').style.display='flex';
+});
+addEventListener('keydown',e=>{
+ if(e.key==='ArrowUp'||e.key==='w')move(0,-12);
+ if(e.key==='ArrowDown'||e.key==='s')move(0,12);
+ if(e.key==='ArrowLeft'||e.key==='a')move(-12,0);
+ if(e.key==='ArrowRight'||e.key==='d')move(12,0);
+});
+canvas.addEventListener('pointerdown',e=>{
+ if(document.querySelector('.overlay[style*="display: flex"]'))return;
+ move(Math.sign(e.clientX-innerWidth/2)*8,Math.sign(e.clientY-innerHeight*.55)*8);
+});
+resize();
+</script>
+</body>
+</html>
