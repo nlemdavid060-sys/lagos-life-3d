@@ -1,0 +1,592 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>LAGOS LIFE 3D - CITY LIFE UPDATE</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden;background:#8bc8ed;font-family:Arial}
+canvas{display:block}
+#top{position:fixed;top:8px;left:8px;right:8px;display:flex;justify-content:space-between;z-index:4;pointer-events:none}
+.panel{background:#101a24e8;color:white;padding:9px 12px;border-radius:12px;font-size:12px}
+#money{color:#69ff9b;font-weight:bold}
+#controls{position:fixed;bottom:12px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:end;z-index:5;pointer-events:none}
+.pad{display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(2,43px);gap:4px;pointer-events:auto}
+.ctrl{border:0;border-radius:12px;background:#101a24d9;color:white;font-size:17px;touch-action:none}
+#actions{display:flex;flex-direction:column;gap:5px;pointer-events:auto}
+#actions button{width:76px;height:38px;font-size:11px}
+#phoneButton{position:fixed;right:12px;top:75px;z-index:7;border:2px solid white;border-radius:14px;background:#172a40;color:white;padding:12px;font-size:21px}
+#hint{position:fixed;bottom:112px;left:50%;transform:translateX(-50%);background:#101a24cc;color:white;padding:7px 10px;border-radius:9px;font-size:11px;white-space:nowrap;z-index:4}
+#phone{display:none;position:fixed;z-index:12;left:50%;top:50%;transform:translate(-50%,-50%);width:min(90vw,370px);height:min(76vh,590px);background:#111927;border:7px solid #333d4c;border-radius:32px;color:white;padding:18px;overflow:auto;box-shadow:0 10px 45px #0009}
+#phone h2{margin:5px 0;color:#78e6ff}
+#phoneHeader{display:flex;justify-content:space-between;align-items:center}
+#phoneHeader button{background:#a32d38;color:white;border:0;border-radius:20px;padding:9px 13px}
+#phoneApps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}
+.app{border:0;border-radius:15px;min-height:82px;background:#263d5a;color:white;font-size:12px;font-weight:bold;padding:8px}
+.app span{display:block;font-size:26px;margin-bottom:7px}
+#appPage{display:none;margin-top:15px}
+#appPage button{display:block;width:100%;padding:12px;margin:8px 0;border:0;border-radius:10px;background:#28658b;color:white;font-weight:bold}
+#appPage .back{background:#526071}
+#appPage p{line-height:1.5;font-size:13px}
+#mapGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+#mapGrid button{margin:0}
+.small{font-size:11px;color:#b9cadb}
+#toast{position:fixed;top:115px;left:50%;transform:translateX(-50%);background:#132438;color:white;padding:10px 14px;border-radius:12px;z-index:20;display:none;max-width:90%;text-align:center}
+</style>
+</head>
+<body>
+
+<div id="top">
+ <div class="panel">LAGOS LIFE 3D<br><span id="location">Lagos</span></div>
+ <div class="panel">WALLET<br><span id="money">₦1,000,000,000,000</span></div>
+</div>
+
+<button id="phoneButton">📱</button>
+<div id="toast"></div>
+<div id="hint">Explore the city • Open your phone for apps</div>
+
+<div id="controls">
+ <div class="pad">
+  <button class="ctrl" style="grid-column:2" data-key="forward">▲</button>
+  <button class="ctrl" data-key="left">◀</button>
+  <button class="ctrl" data-key="back">▼</button>
+  <button class="ctrl" data-key="right">▶</button>
+ </div>
+ <div id="actions">
+  <button class="ctrl" id="enter">ENTER</button>
+  <button class="ctrl" id="drive">DRIVE</button>
+  <button class="ctrl" id="jump">JUMP</button>
+  <button class="ctrl" id="day">DAY/NIGHT</button>
+ </div>
+</div>
+
+<div id="phone">
+ <div id="phoneHeader">
+  <div><b>MY SMARTPHONE</b><div class="small">Lagos Life Mobile</div></div>
+  <button id="phoneClose">✕</button>
+ </div>
+ <div id="home">
+  <h2>Good day!</h2>
+  <p class="small">Welcome to your city phone.</p>
+  <div id="phoneApps">
+   <button class="app" data-app="map"><span>🗺️</span>MAP</button>
+   <button class="app" data-app="bank"><span>🏦</span>BANK</button>
+   <button class="app" data-app="shop"><span>🛍️</span>SHOP</button>
+   <button class="app" data-app="invest"><span>📈</span>INVEST</button>
+   <button class="app" data-app="garage"><span>🏎️</span>GARAGE</button>
+   <button class="app" data-app="missions"><span>🎯</span>MISSIONS</button>
+   <button class="app" data-app="property"><span>🏠</span>PROPERTY</button>
+   <button class="app" data-app="profile"><span>👤</span>PROFILE</button>
+   <button class="app" data-app="settings"><span>⚙️</span>SETTINGS</button>
+  </div>
+ </div>
+ <div id="appPage"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+
+if(!window.THREE){
+ document.body.innerHTML='<h2 style="color:white;padding:25px">3D engine unavailable. Check your internet and refresh.</h2>';
+ return;
+}
+
+// ---------- GAME ENGINE ----------
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x8bc8ed);
+scene.fog=new THREE.Fog(0x8bc8ed,100,260);
+
+const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,500);
+const renderer=new THREE.WebGLRenderer({antialias:false});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.3));
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x52634c,2));
+const sun=new THREE.DirectionalLight(0xffffff,2);
+sun.position.set(-40,80,30);
+scene.add(sun);
+
+function mat(c){return new THREE.MeshLambertMaterial({color:c})}
+function cube(x,y,z,w,h,d,color,parent){
+ const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(color));
+ o.position.set(x,y,z);
+ (parent||scene).add(o);
+ return o;
+}
+
+// ---------- CITY ----------
+cube(0,-.3,0,300,.5,300,0x438a48);
+for(let z=-100;z<=100;z+=50)cube(0,.01,z,300,.04,10,0x343b43);
+for(let x=-100;x<=100;x+=50)cube(x,.02,0,10,.04,300,0x343b43);
+
+function building(x,z,w,h,d,color){
+ const g=new THREE.Group();
+ g.position.set(x,0,z);
+ scene.add(g);
+ cube(0,h/2,0,w,h,d,color,g);
+ for(let y=2;y<h-1;y+=3){
+  for(let xx=-w/2+1;xx<w/2;xx+=3){
+   cube(xx,y,d/2+.04,1.1,1.3,.08,0x8dd6ed,g);
+  }
+ }
+ return g;
+}
+
+for(let i=0;i<27;i++){
+ const x=(Math.random()-.5)*180;
+ const z=(Math.random()-.5)*180;
+ if(Math.abs(x)<25&&Math.abs(z)<25)continue;
+ building(x,z,9,8+Math.random()*13,9,
+ [0xd6b28a,0xd2d7df,0xe4c5a1,0xc8d8c8][i%4]);
+}
+
+building(-12,-18,20,17,17,0xe6d8b9);
+building(25,-25,17,25,13,0x8ab8d5);
+building(-35,25,24,13,18,0xd8dce5);
+building(38,30,18,12,16,0xd9b76c);
+building(-25,-45,13,9,12,0xd9a56e);
+building(20,45,22,10,17,0xc9a47d);
+cube(-12,.12,-6,10,.18,5,0x16bde8);
+
+// Trees
+function tree(x,z){
+ const g=new THREE.Group();
+ g.position.set(x,0,z);
+ scene.add(g);
+ cube(0,2,0,.8,4,.8,0x754421,g);
+ const crown=new THREE.Mesh(new THREE.SphereGeometry(2.5,7,6),mat(0x16843d));
+ crown.position.y=5;
+ g.add(crown);
+}
+for(let i=0;i<32;i++)tree((Math.random()-.5)*170,(Math.random()-.5)*170);
+
+// ---------- PLAYER ----------
+const player=new THREE.Group();
+scene.add(player);
+const body=cube(0,1.4,0,1,1.5,.55,0x2255cc,player);
+const head=new THREE.Mesh(new THREE.SphereGeometry(.42,10,8),mat(0xc88a61));
+head.position.y=2.45;
+player.add(head);
+player.position.set(0,0,5);
+
+// ---------- CARS ----------
+const catalogue=[
+ {name:"Bugatti Chiron",price:0,color:0x092b80},
+ {name:"Lamborghini Aventador",price:180000000,color:0xd2c900},
+ {name:"Ferrari 488",price:150000000,color:0xaa1111},
+ {name:"McLaren 720S",price:170000000,color:0xff7b18},
+ {name:"Porsche 911",price:95000000,color:0xffffff},
+ {name:"Nissan GT-R",price:75000000,color:0x222222},
+ {name:"Audi R8",price:110000000,color:0x13a5a5},
+ {name:"Chevrolet Corvette",price:85000000,color:0x8c1830},
+ {name:"Mercedes-AMG GT",price:125000000,color:0xaaaaaa}
+];
+
+function createCar(data,x,z){
+ const g=new THREE.Group();
+ g.position.set(x,0,z);
+ scene.add(g);
+ cube(0,.65,0,4,.8,7,data.color,g);
+ cube(0,1.35,-.5,3,1.1,3.3,0x8ed3ed,g);
+ for(const xx of [-1.8,1.8]){
+  for(const zz of [-2.2,2.2]){
+   const wheel=new THREE.Mesh(new THREE.CylinderGeometry(.65,.65,.35,10),mat(0x171717));
+   wheel.rotation.z=Math.PI/2;
+   wheel.position.set(xx,.55,zz);
+   g.add(wheel);
+  }
+ }
+ return g;
+}
+const cars=[];
+catalogue.forEach((data,i)=>{
+ cars.push(createCar(data,27+(i%3)*7,37+Math.floor(i/3)*10));
+});
+
+// Danfo buses
+const buses=[];
+for(let i=0;i<4;i++){
+ buses.push(createCar({color:0xe9b923},-30+i*12,70));
+}
+
+// Aeroplane
+const plane=new THREE.Group();
+scene.add(plane);
+cube(0,0,0,2,1,8,0xffffff,plane);
+cube(0,0,0,18,.18,2,0xffffff,plane);
+plane.position.set(-70,35,-65);
+
+// ---------- SAVE DATA ----------
+let money=1000000000000;
+let ownedCars=[0];
+let selectedCar=0;
+let ownedItems=[];
+let ownedProperties=[];
+let completed={};
+let investments=[];
+let destination="Lagos";
+let dayMode=true;
+
+try{
+ const s=JSON.parse(localStorage.getItem("lagosPhoneSave")||"{}");
+ if(s.money!==undefined)money=s.money;
+ if(Array.isArray(s.ownedCars))ownedCars=s.ownedCars;
+ if(s.selectedCar!==undefined)selectedCar=s.selectedCar;
+ if(Array.isArray(s.ownedItems))ownedItems=s.ownedItems;
+ if(Array.isArray(s.ownedProperties))ownedProperties=s.ownedProperties;
+ if(s.completed)completed=s.completed;
+ if(Array.isArray(s.investments))investments=s.investments;
+ if(s.destination)destination=s.destination;
+}catch(e){}
+
+if(!ownedCars.includes(0))ownedCars.push(0);
+if(!ownedCars.includes(selectedCar))selectedCar=0;
+
+function save(){
+ try{
+  localStorage.setItem("lagosPhoneSave",JSON.stringify({
+   money,ownedCars,selectedCar,ownedItems,ownedProperties,
+   completed,investments,destination
+  }));
+ }catch(e){}
+}
+
+function wallet(){
+ document.getElementById("money").textContent="₦"+money.toLocaleString("en-NG");
+ save();
+}
+wallet();
+document.getElementById("location").textContent=destination;
+
+// ---------- PHONE SYSTEM ----------
+const phone=document.getElementById("phone");
+const home=document.getElementById("home");
+const page=document.getElementById("appPage");
+
+document.getElementById("phoneButton").onclick=()=>{
+ phone.style.display="block";
+ showHome();
+};
+document.getElementById("phoneClose").onclick=()=>{
+ phone.style.display="none";
+};
+
+function showHome(){
+ home.style.display="block";
+ page.style.display="none";
+}
+function showPage(title,html){
+ home.style.display="none";
+ page.style.display="block";
+ page.innerHTML="<h2>"+title+"</h2>"+html+
+ '<button class="back" id="backHome">← Back to phone</button>';
+ document.getElementById("backHome").onclick=showHome;
+}
+function toast(text){
+ const el=document.getElementById("toast");
+ el.textContent=text;
+ el.style.display="block";
+ clearTimeout(toast.timer);
+ toast.timer=setTimeout(()=>el.style.display="none",2300);
+}
+function spend(cost){
+ if(money<cost){
+  toast("Not enough game money!");
+  return false;
+ }
+ money-=cost;
+ wallet();
+ return true;
+}
+
+// ---------- MAP APP ----------
+const places=[
+ {name:"City Centre",x:0,z:5},
+ {name:"Your Mansion",x:-12,z:-18},
+ {name:"Luxury Hotel",x:25,z:-25},
+ {name:"Lagos Airport",x:-35,z:25},
+ {name:"Car Dealership",x:20,z:45},
+ {name:"Investment Centre",x:38,z:30},
+ {name:"Clothing Shop",x:-25,z:-45},
+ {name:"Beach District",x:70,z:-65},
+ {name:"Shopping District",x:-70,z:65},
+ {name:"Business District",x:65,z:65}
+];
+
+function openMap(){
+ const html='<p>Choose a destination. Your character will travel there in the game.</p><div id="mapGrid">'+
+ places.map((p,i)=>'<button data-place="'+i+'">📍 '+p.name+'</button>').join("")+
+ '</div>';
+ showPage("CITY MAP",html);
+ page.querySelectorAll("[data-place]").forEach(b=>{
+  b.onclick=()=>{
+   const p=places[Number(b.dataset.place)];
+   player.position.set(p.x,0,p.z);
+   if(carMode){
+    cars[selectedCar].position.copy(player.position);
+   }
+   toast("Arrived at "+p.name);
+   closePhone();
+  };
+ });
+}
+
+// ---------- BANK APP ----------
+function openBank(){
+ showPage("MY BANK",
+ '<p>Account: Lagos Life Bank</p>'+
+ '<p>Available game balance:</p>'+
+ '<h2 style="color:#69ff9b">₦'+money.toLocaleString("en-NG")+'</h2>'+
+ '<p class="small">This is virtual money inside your game.</p>'+
+ '<button id="bankReward">Collect daily reward — ₦1,000,000</button>'+
+ '<button id="bankHistory">View investments</button>');
+ document.getElementById("bankReward").onclick=()=>{
+  const today=new Date().toDateString();
+  if(completed.dailyReward===today){
+   toast("You already collected today's reward.");
+   return;
+  }
+  money+=1000000;
+  completed.dailyReward=today;
+  wallet();
+  toast("₦1,000,000 added to your game wallet!");
+  openBank();
+ };
+ document.getElementById("bankHistory").onclick=()=>{
+  showPage("INVESTMENT HISTORY",
+   investments.length?investments.map(x=>"<p>"+x+"</p>").join(""):"<p>No investments yet.</p>");
+ };
+}
+
+// ---------- SHOP APP ----------
+const shopItems=[
+ {name:"Designer Outfit",price:500000,emoji:"👕"},
+ {name:"Luxury Watch",price:1200000,emoji:"⌚"},
+ {name:"Phone Upgrade",price:800000,emoji:"📱"},
+ {name:"Food Supplies",price:50000,emoji:"🍔"},
+ {name:"Home Furniture",price:350000,emoji:"🛋️"},
+ {name:"Fuel Refill",price:100000,emoji:"⛽"},
+ {name:"Golden Chain",price:700000,emoji:"📿"},
+ {name:"Gaming Laptop",price:1500000,emoji:"💻"}
+];
+
+function openShop(){
+ const html='<p>Buy items with your game money.</p>'+
+ shopItems.map((item,i)=>
+  '<button data-buyitem="'+i+'">'+item.emoji+" "+item.name+
+  " — ₦"+item.price.toLocaleString("en-NG")+
+  (ownedItems.includes(i)?" (OWNED)":"")+'</button>'
+ ).join("");
+ showPage("CITY SHOP",html);
+ page.querySelectorAll("[data-buyitem]").forEach(b=>{
+  b.onclick=()=>{
+   const i=Number(b.dataset.buyitem);
+   const item=shopItems[i];
+   if(ownedItems.includes(i)){toast("You already own this item.");return;}
+   if(!spend(item.price))return;
+   ownedItems.push(i);
+   save();
+   toast("You bought "+item.name+"!");
+   openShop();
+  };
+ });
+}
+
+// ---------- INVESTMENT APP ----------
+const businesses=[
+ {name:"Small Business",cost:10000000,profit:12000000},
+ {name:"Shopping Mall",cost:50000000,profit:60000000},
+ {name:"Hotel Business",cost:100000000,profit:125000000},
+ {name:"Factory",cost:200000000,profit:250000000},
+ {name:"Technology Company",cost:300000000,profit:375000000},
+ {name:"Restaurant Chain",cost:25000000,profit:30000000}
+];
+
+function openInvest(){
+ const html='<p>Invest virtual money in a business. Returns are added immediately in this demo.</p>'+
+ businesses.map((b,i)=>
+  '<button data-invest="'+i+'">'+b.name+
+  '<br>Cost ₦'+b.cost.toLocaleString("en-NG")+
+  ' → Return ₦'+b.profit.toLocaleString("en-NG")+'</button>'
+ ).join("");
+ showPage("INVESTMENT CENTRE",html);
+ page.querySelectorAll("[data-invest]").forEach(btn=>{
+  btn.onclick=()=>{
+   const b=businesses[Number(btn.dataset.invest)];
+   if(!spend(b.cost))return;
+   money+=b.profit;
+   investments.push(b.name+" — cost ₦"+b.cost.toLocaleString("en-NG")+
+    ", return ₦"+b.profit.toLocaleString("en-NG"));
+   wallet();
+   toast(b.name+" investment completed!");
+   openInvest();
+  };
+ });
+}
+
+// ---------- GARAGE APP ----------
+function openGarage(){
+ const html='<p>Your sports car collection</p>'+
+ catalogue.map((c,i)=>{
+  const owned=ownedCars.includes(i);
+  return '<button data-car="'+i+'">'+c.name+
+   " — "+(owned?(selectedCar===i?"SELECTED":"OWNED"):"BUY ₦"+c.price.toLocaleString("en-NG"))+
+   '</button>';
+ }).join("");
+ showPage("SPORTS CAR GARAGE",html);
+ page.querySelectorAll("[data-car]").forEach(btn=>{
+  btn.onclick=()=>{
+   const i=Number(btn.dataset.car);
+   const c=catalogue[i];
+   if(ownedCars.includes(i)){
+    selectedCar=i;
+    save();
+    toast(c.name+" selected!");
+    openGarage();
+   }else{
+    if(!spend(c.price))return;
+    ownedCars.push(i);
+    selectedCar=i;
+    save();
+    toast("You bought "+c.name+"!");
+    openGarage();
+   }
+  };
+ });
+}
+
+// ---------- MISSIONS APP ----------
+const missions=[
+ {id:"explore",name:"Explore the city",reward:5000000},
+ {id:"airport",name:"Visit the airport",reward:3000000},
+ {id:"hotel",name:"Visit the hotel",reward:2500000},
+ {id:"dealership",name:"Visit the car dealership",reward:4000000},
+ {id:"shopping",name:"Buy an item from the shop",reward:1000000}
+];
+
+function openMissions(){
+ const html=missions.map(m=>
+  '<button data-mission="'+m.id+'">'+
+  (completed[m.id]?"✅ ":"🎯 ")+m.name+
+  " — ₦"+m.reward.toLocaleString("en-NG")+
+  '</button>'
+ ).join("");
+ showPage("MISSIONS",'<p>Complete activities to earn rewards.</p>'+html);
+ page.querySelectorAll("[data-mission]").forEach(btn=>{
+  btn.onclick=()=>{
+   const id=btn.dataset.mission;
+   if(completed[id]){toast("Mission already completed.");return;}
+   let ready=false;
+   if(id==="explore")ready=true;
+   if(id==="airport")ready=Math.hypot(player.position.x+35,player.position.z-25)<18;
+   if(id==="hotel")ready=Math.hypot(player.position.x-25,player.position.z+25)<18;
+   if(id==="dealership")ready=Math.hypot(player.position.x-20,player.position.z-45)<22;
+   if(id==="shopping")ready=ownedItems.length>0;
+   if(!ready){toast("Visit the place or complete the activity first.");return;}
+   const m=missions.find(x=>x.id===id);
+   completed[id]=true;
+   money+=m.reward;
+   wallet();
+   toast("Mission completed! Reward added.");
+   openMissions();
+  };
+ });
+}
+
+// ---------- PROPERTY APP ----------
+const properties=[
+ {name:"Luxury Apartment",cost:25000000},
+ {name:"Beach House",cost:75000000},
+ {name:"Modern Mansion",cost:150000000},
+ {name:"Shopping Complex",cost:200000000}
+];
+
+function openProperty(){
+ const html=properties.map((p,i)=>
+  '<button data-property="'+i+'">'+p.name+
+  " — ₦"+p.cost.toLocaleString("en-NG")+
+  (ownedProperties.includes(i)?" (OWNED)":"")+'</button>'
+ ).join("");
+ showPage("PROPERTY MARKET",'<p>Buy properties in your game city.</p>'+html);
+ page.querySelectorAll("[data-property]").forEach(btn=>{
+  btn.onclick=()=>{
+   const i=Number(btn.dataset.property);
+   const p=properties[i];
+   if(ownedProperties.includes(i)){toast("You already own this property.");return;}
+   if(!spend(p.cost))return;
+   ownedProperties.push(i);
+   save();
+   toast("You bought "+p.name+"!");
+   openProperty();
+  };
+ });
+}
+
+// ---------- PROFILE AND SETTINGS ----------
+function openProfile(){
+ showPage("PLAYER PROFILE",
+ '<p>Player: City Resident</p>'+
+ '<p>Location: '+destination+'</p>'+
+ '<p>Owned cars: '+ownedCars.length+'</p>'+
+ '<p>Owned items: '+ownedItems.length+'</p>'+
+ '<p>Properties: '+ownedProperties.length+'</p>'+
+ '<p>Businesses: '+investments.length+'</p>');
+}
+function openSettings(){
+ showPage("SETTINGS",
+ '<button id="saveButton">SAVE GAME</button>'+
+ '<button id="resetCamera">RESET PLAYER POSITION</button>'+
+ '<p class="small">Game progress is saved on this device.</p>');
+ document.getElementById("saveButton").onclick=()=>{save();toast("Game saved!");};
+ document.getElementById("resetCamera").onclick=()=>{
+  player.position.set(0,0,5);
+  if(carMode)cars[selectedCar].position.copy(player.position);
+  toast("Player position reset.");
+ };
+}
+
+function closePhone(){
+ phone.style.display="none";
+}
+document.querySelectorAll("[data-app]").forEach(btn=>{
+ btn.onclick=()=>{
+  const app=btn.dataset.app;
+  if(app==="map")openMap();
+  if(app==="bank")openBank();
+  if(app==="shop")openShop();
+  if(app==="invest")openInvest();
+  if(app==="garage")openGarage();
+  if(app==="missions")openMissions();
+  if(app==="property")openProperty();
+  if(app==="profile")openProfile();
+  if(app==="settings")openSettings();
+ };
+});
+
+// ---------- MOVEMENT ----------
+const keys={};
+document.querySelectorAll("[data-key]").forEach(btn=>{
+ const k=btn.dataset.key;
+ btn.addEventListener("pointerdown",e=>{
+  e.preventDefault();
+  keys[k]=true;
+ });
+ ["pointerup","pointerleave","pointercancel"].forEach(event=>{
+  btn.addEventListener(event,()=>keys[k]=false);
+ });
+});
+
+let carMode=false;
+document.getElementById("drive").onclick=()=>{
+ if(!ownedCars.includes(selectedCar)){toast("Buy a car first.");return;}
+ carMode=!carMode;
+ if(carMode){
+  cars[selectedCar].position.copy(player.position);
+  toast("Driving "+catalogue[selectedCar].name);
+ }else{
+  player.position.copy(cars[selectedCar].position);
+  toast("You left the
