@@ -1,0 +1,391 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>LAGOS LIFE 3D - SOLID CITY</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden;background:#87ceeb;font-family:Arial}
+canvas{display:block}
+button{cursor:pointer}
+#hud{position:fixed;top:10px;left:10px;background:#101b2ddd;color:white;padding:11px;border-radius:12px;z-index:5;font-size:13px;line-height:1.7}
+#phoneBtn{position:fixed;right:10px;top:10px;background:#101827;color:white;padding:13px;border:1px solid white;border-radius:13px;z-index:8}
+#phone{display:none;position:fixed;z-index:20;right:8px;top:60px;bottom:10px;width:min(350px,95vw);overflow:auto;background:#111c2c;color:white;border:2px solid #789;border-radius:22px;padding:13px}
+#phone button{background:#263d5b;color:white;border:1px solid #627b9b;border-radius:10px;padding:12px;margin:3px}
+#close{float:right;background:#9c3030!important}
+#apps{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;clear:both}
+.app{min-height:65px;font-size:13px}
+#page{background:#1b2a3e;border-radius:13px;padding:10px;margin-top:12px;min-height:130px}
+#page button{width:100%;text-align:left;margin:4px 0}
+#controls{position:fixed;bottom:12px;left:10px;z-index:9;display:grid;grid-template-columns:repeat(3,52px);gap:5px}
+#controls button,#drive{height:48px;border:1px solid white;border-radius:12px;background:#101b2ddd;color:white;font-size:20px}
+#drive{position:fixed;right:12px;bottom:15px;z-index:9;padding:12px;font-size:14px}
+#toast{display:none;position:fixed;top:90px;left:50%;transform:translateX(-50%);z-index:40;background:#101827;color:white;padding:12px;border-radius:12px}
+</style>
+</head>
+<body>
+<div id="hud">🌆 <b>LAGOS LIFE 3D</b><br>₦<span id="money">0</span><br><span id="mode">Walking</span></div>
+<button id="phoneBtn">📱 PHONE</button>
+<div id="phone">
+<button id="close">CLOSE ✕</button>
+<h2>📱 LAGOS PHONE</h2>
+<div id="apps">
+<button class="app" onclick="app('bank')">🏦<br>Bank</button>
+<button class="app" onclick="app('invest')">📈<br>Invest</button>
+<button class="app" onclick="app('garage')">🚘<br>Garage</button>
+<button class="app" onclick="app('map')">🗺️<br>Map</button>
+<button class="app" onclick="app('shop')">🛍️<br>Shop</button>
+<button class="app" onclick="app('house')">🏠<br>Property</button>
+<button class="app" onclick="app('missions')">🎯<br>Missions</button>
+<button class="app" onclick="app('profile')">👤<br>Profile</button>
+</div>
+<div id="page">Welcome to Lagos Life!</div>
+</div>
+<div id="controls">
+<div></div><button data-k="f">▲</button><div></div>
+<button data-k="l">◀</button><button data-k="b">▼</button><button data-k="r">▶</button>
+</div>
+<button id="drive">🚗 ENTER CAR</button>
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const initial={money:50000000,cars:["Bugatti Chiron"],selected:"Bugatti Chiron",houses:[],items:[]};
+let save;
+try{save=JSON.parse(localStorage.getItem("lagosSolidSave"))||initial}catch(e){save=initial}
+let money=save.money??initial.money;
+let owned=save.cars||initial.cars,selected=save.selected||initial.selected;
+let houses=save.houses||[],items=save.items||[];
+let scene,camera,renderer,player,car,driver;
+let driving=false,speed=0,angle=0,walkTime=0,night=false;
+let keys={f:false,b:false,l:false,r:false};
+let solids=[];
+const catalog=[
+["Bugatti Chiron",0,0x123bff],
+["Lamborghini Aventador",180000000,0xffcc00],
+["Ferrari 488",150000000,0xd90000],
+["McLaren 720S",170000000,0xff6600],
+["Porsche 911",95000000,0xffffff],
+["Nissan GT-R",75000000,0x222222],
+["Mercedes AMG GT",125000000,0x00aaff]
+];
+const places={"Victoria Island":[45,0,0],"Lekki":[75,0,-55],"Ikeja":[-65,0,-50],"Airport":[-85,0,65],"Marina":[0,0,80],"Stadium":[65,0,75]};
+
+function persist(){
+localStorage.setItem("lagosSolidSave",JSON.stringify({money,cars:owned,selected,houses,items}));
+}
+function cash(){$("money").textContent=money.toLocaleString("en-NG");persist()}
+function say(s){
+$("toast").textContent=s;$("toast").style.display="block";
+clearTimeout(window.toastTimer);
+window.toastTimer=setTimeout(()=>$("toast").style.display="none",2200);
+}
+function spend(n){if(money<n){say("Not enough game money!");return false}money-=n;cash();return true}
+function earn(n){money+=n;cash()}
+
+function app(name){
+let h="";
+if(name==="bank")h=`<h3>🏦 LAGOS BANK</h3><p>Balance: ₦${money.toLocaleString()}</p><button onclick="earn(1000000);app('bank')">Collect game reward ₦1,000,000</button>`;
+if(name==="invest"){
+h="<h3>📈 INVESTMENTS</h3><p>Fictional game investments:</p>";
+[["Small business",5000000,7500000],["Property fund",15000000,22000000],["Tech company",10000000,14500000]].forEach((a,i)=>h+=`<button onclick="invest(${i})">${a[0]} · ₦${a[1].toLocaleString()} · Reward ₦${a[2].toLocaleString()}</button>`);
+}
+if(name==="garage"){
+h="<h3>🚘 CAR DEALERSHIP</h3>";
+catalog.forEach((c,i)=>h+=`<button onclick="buyCar(${i})">${c[0]} — ${c[1]?"₦"+c[1].toLocaleString():"FREE"} ${owned.includes(c[0])?"✓ OWNED":""}</button>`);
+h+=`<p>Selected car: ${selected}</p><button onclick="spawnCar()">Bring my car here</button>`;
+}
+if(name==="map"){
+h="<h3>🗺️ LAGOS MAP</h3>";
+Object.keys(places).forEach(n=>h+=`<button onclick="travel('${n}')">📍 ${n}</button>`);
+}
+if(name==="shop"){
+h="<h3>🛍️ SHOP</h3>";
+[["Outfit",250000],["Luxury watch",1200000],["Smartphone",900000],["Shoes",400000],["Laptop",2500000]].forEach((a,i)=>h+=`<button onclick="buyItem(${i})">${a[0]} — ₦${a[1].toLocaleString()}</button>`);
+h+=`<p>Owned: ${items.join(", ")||"Nothing yet"}</p>`;
+}
+if(name==="house"){
+h="<h3>🏠 PROPERTY MARKET</h3>";
+[["Lekki apartment",25000000],["VI luxury house",80000000],["Ikeja mansion",120000000]].forEach((a,i)=>h+=`<button onclick="buyHouse(${i})">${a[0]} — ₦${a[1].toLocaleString()}</button>`);
+h+=`<p>Owned: ${houses.join(", ")||"None"}</p>`;
+}
+if(name==="missions")h="<h3>🎯 MISSIONS</h3><p>Explore Lagos and drive your car to earn rewards.</p><button onclick='earn(500000)'>City exploration reward ₦500,000</button>";
+if(name==="profile")h=`<h3>👤 PROFILE</h3><p>Balance: ₦${money.toLocaleString()}</p><p>Cars: ${owned.length}</p><p>Properties: ${houses.length}</p>`;
+$("page").innerHTML=h;
+}
+function invest(i){
+let a=[["Small business",5000000,7500000],["Property fund",15000000,22000000],["Tech company",10000000,14500000]][i];
+if(spend(a[1])){earn(a[2]);say("Game investment completed!");app("invest")}
+}
+function buyCar(i){
+let c=catalog[i];
+if(owned.includes(c[0])){selected=c[0];persist();say("Car selected");app("garage");return}
+if(spend(c[1])){owned.push(c[0]);selected=c[0];say("Car purchased!");app("garage")}
+}
+function buyItem(i){
+let a=[["Outfit",250000],["Luxury watch",1200000],["Smartphone",900000],["Shoes",400000],["Laptop",2500000]][i];
+if(spend(a[1])){items.push(a[0]);app("shop");say("Item purchased!")}
+}
+function buyHouse(i){
+let a=[["Lekki apartment",25000000],["VI luxury house",80000000],["Ikeja mansion",120000000]][i];
+if(houses.includes(a[0]))return say("Already owned");
+if(spend(a[1])){houses.push(a[0]);app("house");say("Property purchased!")}
+}
+function travel(n){
+let p=places[n];player.position.set(p[0],0,p[2]);
+car.position.set(p[0]+5,0,p[2]);driving=false;speed=0;
+$("mode").textContent="Walking";$("phone").style.display="none";say("Welcome to "+n);
+}
+
+function solidBox(x,y,z,w,h,d,color){
+let mesh=new THREE.Mesh(
+new THREE.BoxGeometry(w,h,d),
+new THREE.MeshLambertMaterial({color})
+);
+mesh.position.set(x,y+h/2,z);scene.add(mesh);
+solids.push({x,z,w,d});
+return mesh;
+}
+function createBuilding(x,z,w,h,d,color){
+solidBox(x,0,z,w,h,d,color);
+
+const wallMat=new THREE.MeshLambertMaterial({color});
+const trim=new THREE.MeshLambertMaterial({color:0xddd6c9});
+const windowMat=new THREE.MeshPhongMaterial({color:0x78c9e8,shininess:80});
+let roof=new THREE.Mesh(new THREE.BoxGeometry(w+.5,.5,d+.5),trim);
+roof.position.set(x,h+.25,z);scene.add(roof);
+
+// Front entrance
+let door=new THREE.Mesh(new THREE.BoxGeometry(1.5,2.8,.15),new THREE.MeshLambertMaterial({color:0x49301e}));
+door.position.set(x,1.4,z-d/2-.1);scene.add(door);
+
+// Windows on front and sides
+for(let yy=3;yy<h-1;yy+=3){
+for(let xx=-w/2+2;xx<w/2-1;xx+=3){
+let win=new THREE.Mesh(new THREE.BoxGeometry(1.5,1.5,.12),windowMat);
+win.position.set(x+xx,yy,z-d/2-.12);scene.add(win);
+let frame=new THREE.Mesh(new THREE.BoxGeometry(1.65,1.65,.08),trim);
+frame.position.set(x+xx,yy,z-d/2-.2);scene.add(frame);
+}
+}
+for(let yy=3;yy<h-1;yy+=3){
+for(let zz=-d/2+2;zz<d/2-1;zz+=3){
+let win=new THREE.Mesh(new THREE.BoxGeometry(.12,1.5,1.5),windowMat);
+win.position.set(x+w/2+.08,yy,z+zz);scene.add(win);
+}
+}
+}
+
+// Articulated human character
+function createCharacter(){
+let group=new THREE.Group();
+const skin=new THREE.MeshLambertMaterial({color:0x9b6747});
+const shirt=new THREE.MeshLambertMaterial({color:0x1748d0});
+const trousers=new THREE.MeshLambertMaterial({color:0x20242e});
+const shoes=new THREE.MeshLambertMaterial({color:0x111111});
+
+function part(parent,geo,mat,x,y,z){
+let m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);parent.add(m);return m;
+}
+part(group,new THREE.BoxGeometry(.65,.85,.35),shirt,0,1.45,0);
+part(group,new THREE.SphereGeometry(.24,16,12),skin,0,2.05,0);
+part(group,new THREE.BoxGeometry(.28,.18,.28),new THREE.MeshLambertMaterial({color:0x222222}),0,2.28,0);
+
+// Arms pivot from shoulders
+let arms=[];
+for(let side of [-1,1]){
+let pivot=new THREE.Group();pivot.position.set(side*.42,1.8,0);group.add(pivot);
+part(pivot,new THREE.CylinderGeometry(.105,.12,.7,10),skin,0,-.35,0);
+arms.push(pivot);
+}
+// Legs pivot from hips
+let legs=[];
+for(let side of [-1,1]){
+let pivot=new THREE.Group();pivot.position.set(side*.19,1.05,0);group.add(pivot);
+part(pivot,new THREE.CylinderGeometry(.13,.12,.75,10),trousers,0,-.38,0);
+part(pivot,new THREE.BoxGeometry(.24,.16,.4),shoes,0,-.77,-.07);
+legs.push(pivot);
+}
+group.userData={arms,legs};
+scene.add(group);
+return group;
+}
+
+// Detailed car with driver seat and visible driver
+function createCar(color){
+let g=new THREE.Group();
+function box(w,h,d,c,x,y,z){
+let m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshLambertMaterial({color:c}));
+m.position.set(x,y,z);g.add(m);return m;
+}
+box(2.7,.7,5,color,0,.8,0);
+box(2.25,.85,2.5,0x162b40,0,1.48,-.25);
+box(1.85,.06,2.35,0x86cce8,0,1.65,-.25);
+
+// bonnet and lights
+box(2.4,.16,1.4,color,0,1.1,-1.65);
+box(.55,.18,.12,0xffffff,-.8,.95,-2.52);
+box(.55,.18,.12,0xffffff,.8,.95,-2.52);
+
+// wheels
+for(let x of [-1.4,1.4])for(let z of [-1.6,1.6]){
+let wheel=new THREE.Mesh(new THREE.CylinderGeometry(.43,.43,.28,16),new THREE.MeshLambertMaterial({color:0x111111}));
+wheel.rotation.z=Math.PI/2;wheel.position.set(x,.43,z);g.add(wheel);
+let hub=new THREE.Mesh(new THREE.CylinderGeometry(.17,.17,.3,12),new THREE.MeshLambertMaterial({color:0xaaaaaa}));
+hub.rotation.z=Math.PI/2;hub.position.set(x,.43,z);g.add(hub);
+}
+// Driver visible through windshield
+let driverGroup=new THREE.Group();
+let torso=new THREE.Mesh(new THREE.BoxGeometry(.48,.6,.35),new THREE.MeshLambertMaterial({color:0x1748d0}));
+torso.position.set(-.48,1.3,-.05);driverGroup.add(torso);
+let head=new THREE.Mesh(new THREE.SphereGeometry(.19,12,12),new THREE.MeshLambertMaterial({color:0x9b6747}));
+head.position.set(-.48,1.72,-.05);driverGroup.add(head);
+g.add(driverGroup);
+g.userData.driver=driverGroup;
+scene.add(g);return g;
+}
+
+function blocked(x,z,r){
+return solids.some(b=>
+Math.abs(x-b.x)<b.w/2+r && Math.abs(z-b.z)<b.d/2+r
+);
+}
+function init(){
+if(!window.THREE){document.body.innerHTML="Three.js failed to load. Check your internet connection.";return}
+scene=new THREE.Scene();
+scene.background=new THREE.Color(0x8bc9ed);
+scene.fog=new THREE.Fog(0x8bc9ed,100,270);
+camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,500);
+renderer=new THREE.WebGLRenderer({antialias:false});
+renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(1);
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x53634a,2));
+let sun=new THREE.DirectionalLight(0xffffff,1.3);
+sun.position.set(40,80,30);scene.add(sun);
+
+let ground=new THREE.Mesh(new THREE.PlaneGeometry(500,500),new THREE.MeshLambertMaterial({color:0x4b9850}));
+ground.rotation.x=-Math.PI/2;scene.add(ground);
+
+// Main roads
+let roadmat=new THREE.MeshLambertMaterial({color:0x30343a});
+function road(x,z,w,d){
+let o=new THREE.Mesh(new THREE.BoxGeometry(w,.08,d),roadmat);
+o.position.set(x,.05,z);scene.add(o);
+}
+road(0,0,500,18);road(0,0,18,500);
+road(55,0,12,500);road(-55,0,12,500);
+road(0,55,500,12);road(0,-55,500,12);
+
+// Road markings
+let white=new THREE.MeshBasicMaterial({color:0xffffff});
+for(let i=-240;i<240;i+=14){
+let a=new THREE.Mesh(new THREE.BoxGeometry(5,.1,.2),white);
+a.position.set(i,.12,0);scene.add(a);
+}
+
+// Buildings
+for(let x=-110;x<=110;x+=27){
+for(let z=-110;z<=110;z+=27){
+if(Math.abs(x)<18||Math.abs(z)<18)continue;
+let h=12+Math.random()*25;
+createBuilding(x,z,13,h,13,[0xb9a38f,0x9baab5,0xc5c5bf,0x718b9b][Math.floor(Math.random()*4)]);
+}
+}
+player=createCharacter();
+player.position.set(0,0,8);
+car=createCar(catalog.find(c=>c[0]===selected)?.[2]||0x153bff);
+car.position.set(5,0,5);
+}
+
+function spawnCar(){
+let c=catalog.find(c=>c[0]===selected)||catalog[0];
+scene.remove(car);car=createCar(c[2]);
+car.position.set(player.position.x+4,0,player.position.z);
+say("Your "+selected+" is ready!");
+$("phone").style.display="none";
+}
+function toggleDrive(){
+if(!driving){
+if(player.position.distanceTo(car.position)>9){say("Walk closer to your car first!");return}
+driving=true;angle=car.rotation.y;
+player.visible=false;
+$("mode").textContent="Driving";
+$("drive").textContent="🚶 EXIT CAR";
+say("You entered the car!");
+}else{
+driving=false;speed=0;
+player.visible=true;
+player.position.set(car.position.x+3,0,car.position.z);
+player.rotation.y=car.rotation.y;
+$("mode").textContent="Walking";
+$("drive").textContent="🚗 ENTER CAR";
+say("You left the car!");
+}
+}
+function animate(){
+requestAnimationFrame(animate);
+if(!scene)return;
+let target=driving?car:player;
+let move=keys.f?1:keys.b?-1:0;
+let turn=keys.l?1:keys.r?-1:0;
+
+if(driving){
+speed=(speed+move*.012)*.97;
+angle+=turn*.035;
+car.rotation.y=angle;
+let old=car.position.clone();
+car.translateZ(-speed*2.5);
+if(blocked(car.position.x,car.position.z,2.2)){
+car.position.copy(old);speed=0;
+}
+}else{
+if(move||turn){
+let old=player.position.clone();
+player.rotation.y+=turn*.055;
+player.translateZ(-move*.18);
+if(blocked(player.position.x,player.position.z,.55)){
+player.position.copy(old);
+}
+walkTime+=.2;
+player.userData.legs[0].rotation.x=Math.sin(walkTime)*.55;
+player.userData.legs[1].rotation.x=-Math.sin(walkTime)*.55;
+player.userData.arms[0].rotation.x=-Math.sin(walkTime)*.45;
+player.userData.arms[1].rotation.x=Math.sin(walkTime)*.45;
+}else{
+player.userData.legs.forEach(p=>p.rotation.x=0);
+player.userData.arms.forEach(p=>p.rotation.x=0);
+}
+}
+let offset=new THREE.Vector3(0,5,10).applyAxisAngle(new THREE.Vector3(0,1,0),target.rotation.y);
+camera.position.lerp(new THREE.Vector3(target.position.x+offset.x,target.position.y+offset.y,target.position.z+offset.z),.12);
+camera.lookAt(target.position.x,target.position.y+1,target.position.z);
+renderer.render(scene,camera);
+}
+
+$("phoneBtn").onclick=()=>$("phone").style.display="block";
+$("close").onclick=()=>$("phone").style.display="none";
+$("drive").onclick=toggleDrive;
+document.querySelectorAll("[data-k]").forEach(b=>{
+let k=b.dataset.k;
+b.addEventListener("pointerdown",e=>{e.preventDefault();keys[k]=true});
+["pointerup","pointerleave","pointercancel"].forEach(ev=>b.addEventListener(ev,()=>keys[k]=false));
+});
+addEventListener("keydown",e=>{
+let m={ArrowUp:"f",w:"f",ArrowDown:"b",s:"b",ArrowLeft:"l",a:"l",ArrowRight:"r",d:"r"};
+if(m[e.key])keys[m[e.key]]=true;
+});
+addEventListener("keyup",e=>{
+let m={ArrowUp:"f",w:"f",ArrowDown:"b",s:"b",ArrowLeft:"l",a:"l",ArrowRight:"r",d:"r"};
+if(m[e.key])keys[m[e.key]]=false;
+});
+addEventListener("resize",()=>{
+if(camera){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)}
+});
+try{init();cash();animate()}catch(e){document.body.innerHTML="Game error: "+e.message}
+</script>
+</body>
+</html>
