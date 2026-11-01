@@ -1,0 +1,370 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Lagos Life</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#8fc7e5;font-family:Arial;color:white;overflow:hidden}
+canvas{display:block;width:100vw;height:100dvh;touch-action:none}
+#hud{position:fixed;top:9px;left:9px;right:9px;display:flex;justify-content:space-between;z-index:3;pointer-events:none}
+.pill{background:#142d3a;padding:10px;border-radius:12px;font-size:13px;font-weight:bold}
+#stats{display:flex;gap:5px}
+#bottom{position:fixed;bottom:12px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:end;z-index:3}
+#controls{display:grid;grid-template-columns:43px 43px 43px;grid-template-rows:43px 43px;gap:4px}
+#controls button,.action{border:0;background:#142d3a;color:white;border-radius:12px;font-weight:bold;touch-action:none}
+#controls button{font-size:21px}
+#up{grid-column:2}#left{grid-column:1;grid-row:2}#down{grid-column:2;grid-row:2}#right{grid-column:3;grid-row:2}
+#actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:end}
+.action{padding:12px 13px}
+.overlay{display:none;position:fixed;inset:0;background:#07131cdd;z-index:10;align-items:center;justify-content:center;padding:12px}
+.panel{background:#f3f5f2;color:#192d35;border-radius:20px;padding:16px;width:min(480px,100%);max-height:88vh;overflow:auto}
+.head{display:flex;justify-content:space-between;align-items:center}
+.close{background:#203d49;color:white;border:0;padding:10px;border-radius:9px}
+#items{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.item{background:white;border:1px solid #ddd;border-radius:12px;padding:10px;color:#182c34}
+.item button,.green{width:100%;background:#16895d;color:white;border:0;border-radius:9px;padding:10px;margin-top:7px;font-weight:bold}
+.phone{width:min(350px,95vw);height:min(690px,88vh);background:#17232b;border:7px solid #35434b;border-radius:34px;padding:10px;display:flex;flex-direction:column}
+.phoneTop{display:flex;justify-content:space-between;padding:6px;font-size:12px}
+.phoneScreen{flex:1;background:linear-gradient(145deg,#7ca9c6,#c1d8d1);border-radius:20px;color:#172d38;padding:14px;overflow:auto}
+#appGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:24px}
+.app{border:0;background:#ffffffdf;border-radius:14px;padding:10px 3px;min-height:75px;font-weight:bold;color:#172d38;font-size:11px}
+.app span{display:block;font-size:27px;margin-bottom:5px}
+.phoneBottom{display:flex;justify-content:space-around;padding-top:10px}
+.phoneBottom button{border:0;background:#35434b;color:white;border-radius:12px;padding:10px}
+#appScreen{background:#f4f6f3;border-radius:13px;padding:12px;min-height:90%;color:#172d38}
+#appScreen input,#appScreen textarea{width:100%;padding:11px;border:1px solid #bbc8c9;border-radius:8px;margin:5px 0;font:inherit}
+#appScreen textarea{min-height:150px}
+#appScreen button{background:#16895d;color:white;border:0;border-radius:8px;padding:10px;margin:4px 2px}
+#notice{display:none;position:fixed;top:65px;left:50%;transform:translateX(-50%);z-index:8;background:#142d3a;padding:10px;border-radius:10px;font-size:13px}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+ <div class="pill">🏠 LAGOS LIFE</div>
+ <div id="stats">
+  <div class="pill" id="money">₦500,000</div>
+  <div class="pill">⚡100</div>
+ </div>
+</div>
+<div id="notice"></div>
+<div id="bottom">
+ <div id="controls">
+  <button id="up">▲</button><button id="left">◀</button>
+  <button id="down">▼</button><button id="right">▶</button>
+ </div>
+ <div id="actions">
+  <button class="action" id="buy">🛒 BUY</button>
+  <button class="action" id="phoneBtn">📱 PHONE</button>
+  <button class="action" id="homeBtn">🏠 HOME</button>
+  <button class="action" id="yardBtn">🌴 YARD</button>
+ </div>
+</div>
+
+<div class="overlay" id="shop">
+ <div class="panel">
+  <div class="head"><h2>🛍️ Furniture Shop</h2><button class="close" id="closeShop">✕</button></div>
+  <p>Buy furniture, then tap inside your house to place it.</p>
+  <div id="items"></div>
+ </div>
+</div>
+
+<div class="overlay" id="phone">
+ <div class="phone">
+  <div class="phoneTop"><span id="clock">11:51</span><span>●●● ▰</span></div>
+  <div class="phoneScreen">
+   <div id="phoneHome">
+    <h2 style="text-align:center;margin:14px 0 4px">LAGOS PHONE</h2>
+    <p id="date" style="text-align:center;font-size:12px"></p>
+    <div id="appGrid">
+     <button class="app" data-app="messages"><span>💬</span>Messages</button>
+     <button class="app" data-app="calculator"><span>🧮</span>Calculator</button>
+     <button class="app" data-app="map"><span>🗺️</span>Lagos Map</button>
+     <button class="app" data-app="notes"><span>📝</span>Notes</button>
+     <button class="app" data-app="calendar"><span>📅</span>Calendar</button>
+     <button class="app" data-app="settings"><span>⚙️</span>Settings</button>
+    </div>
+   </div>
+   <div id="appScreen" style="display:none"></div>
+  </div>
+  <div class="phoneBottom">
+   <button id="back">← Back</button>
+   <button id="phoneHomeBtn">● Home</button>
+   <button id="closePhone">Close</button>
+  </div>
+ </div>
+</div>
+
+<script>
+const canvas=document.getElementById('game');
+const ctx=canvas.getContext('2d');
+let W=innerWidth,H=innerHeight,dpr=Math.min(devicePixelRatio||1,2);
+function resize(){
+ W=innerWidth;H=innerHeight;
+ canvas.width=W*dpr;canvas.height=H*dpr;
+ canvas.style.width=W+'px';canvas.style.height=H+'px';
+ ctx.setTransform(dpr,0,0,dpr,0,0);
+ draw();
+}
+addEventListener('resize',resize);
+
+let money=500000;
+let player={x:0,z:4};
+let placeItem=null;
+let furniture=[];
+let outside=false;
+let keys={};
+const products=[
+ ['🛋️','Sofa',85000,'#3976a8'],
+ ['🛏️','Bed',120000,'#9a6b9c'],
+ ['🍽️','Dining table',45000,'#98613b'],
+ ['🪑','Chair',18000,'#9a6035'],
+ ['📺','TV',65000,'#252d32'],
+ ['🧊','Fridge',95000,'#d9e0e5'],
+ ['🚪','Wardrobe',70000,'#865b3e'],
+ ['🪴','Plant',12000,'#287d43']
+];
+
+function notice(t){
+ const n=document.getElementById('notice');
+ n.textContent=t;n.style.display='block';
+ clearTimeout(notice.timer);
+ notice.timer=setTimeout(()=>n.style.display='none',2200);
+}
+function moneyUI(){
+ document.getElementById('money').textContent='₦'+money.toLocaleString('en-NG');
+}
+function rect(x,y,w,h,c){
+ ctx.fillStyle=c;ctx.fillRect(x,y,w,h);
+}
+function polygon(points,c){
+ ctx.fillStyle=c;ctx.beginPath();
+ points.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));
+ ctx.closePath();ctx.fill();
+}
+function text(t,x,y,size=15,c='#203b32'){
+ ctx.fillStyle=c;ctx.font='bold '+size+'px Arial';ctx.textAlign='center';ctx.fillText(t,x,y);
+}
+function drawTree(x,y){
+ rect(x-5,y,10,36,'#805537');
+ ctx.fillStyle='#287c46';ctx.beginPath();ctx.arc(x,y-5,25,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#469956';ctx.beginPath();ctx.arc(x-12,y-17,14,0,Math.PI*2);ctx.fill();
+}
+function draw(){
+ if(!ctx)return;
+ ctx.clearRect(0,0,W,H);
+ rect(0,0,W,H,'#91cce8');
+ // distant sky and city
+ rect(0,H*.43,W,H*.57,'#66a85c');
+ for(let i=0;i<8;i++){
+  let x=i*W/7-20;
+  rect(x,H*.27,65,H*.19,['#d2a16d','#d6d9d5','#b8c5cd'][i%3]);
+  for(let j=0;j<3;j++)rect(x+10+j*17,H*.30,9,15,'#8cc4df');
+ }
+ // yard and road
+ rect(0,H*.75,W,H*.25,'#4b5052');
+ for(let x=0;x<W;x+=100)rect(x,H*.865,48,4,'#e7d99b');
+ drawTree(35,H*.57);drawTree(W-40,H*.56);
+ // house dimensions adapt to screen
+ const s=Math.min(W/420,H/650,1.1);
+ const cx=W/2,cy=H*.54;
+ const hw=170*s,hh=120*s;
+ // floor
+ polygon([[cx-hw,cy],[cx,cy-hh],[cx+hw,cy],[cx,cy+hh]],'#d9c6a5');
+ // rear wall and side walls
+ polygon([[cx-hw,cy],[cx-hw,cy-100*s],[cx,cy-100*s-hh],[cx,cy-hh]],'#eee6d5');
+ polygon([[cx,cy-hh],[cx,cy-100*s-hh],[cx+hw,cy-100*s],[cx+hw,cy]],'#e2d6c3');
+ // wall edges
+ polygon([[cx-hw,cy-100*s],[cx,cy-100*s-hh],[cx+hw,cy-100*s],[cx,cy-100*s+hh]],'#b58a60');
+ // room divider
+ polygon([[cx-35*s,cy-20*s],[cx,cy-45*s],[cx,cy+32*s],[cx-35*s,cy+12*s]],'#b6a68d');
+ polygon([[cx+30*s,cy-20*s],[cx+65*s,cy-42*s],[cx+65*s,cy+35*s],[cx+30*s,cy+55*s]],'#b6a68d');
+ // windows
+ rect(cx-90*s,cy-75*s,36*s,27*s,'#7dc5e3');
+ rect(cx+60*s,cy-72*s,35*s,27*s,'#7dc5e3');
+ // doors
+ rect(cx-12*s,cy-80*s,24*s,55*s,'#795036');
+ // room names
+ text('LIVING ROOM',cx-75*s,cy+15*s,11*s);
+ text('BEDROOM',cx+80*s,cy-10*s,11*s);
+ text('KITCHEN',cx+70*s,cy+72*s,11*s);
+ text('DINING',cx-75*s,cy+75*s,11*s);
+ // furniture
+ furniture.forEach(f=>{
+  const x=cx+f.x*s,y=cy+f.z*s;
+  text(f.emoji,x,y,27*s);
+ });
+ // player
+ const px=cx+player.x*s,py=cy+player.z*s;
+ ctx.fillStyle='#2467ce';ctx.beginPath();ctx.ellipse(px,py,12*s,17*s,0,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#8c5737';ctx.beginPath();ctx.arc(px,py-17*s,9*s,0,Math.PI*2);ctx.fill();
+ text('YOU',px,py+30*s,10*s);
+ if(outside)text('YOUR YARD',W/2,H*.94,15);
+}
+
+function move(dx,dz){
+ player.x=Math.max(-145,Math.min(145,player.x+dx));
+ player.z=Math.max(-90,Math.min(130,player.z+dz));
+ draw();
+}
+function bindMove(id,dx,dz){
+ const b=document.getElementById(id);
+ b.addEventListener('pointerdown',e=>{
+  e.preventDefault();move(dx,dz);
+  const timer=setInterval(()=>move(dx,dz),100);
+  const stop=()=>{clearInterval(timer);removeEventListener('pointerup',stop);removeEventListener('pointercancel',stop)};
+  addEventListener('pointerup',stop);addEventListener('pointercancel',stop);
+ });
+}
+bindMove('up',0,-8);bindMove('down',0,8);
+bindMove('left',-8,0);bindMove('right',8,0);
+
+document.getElementById('homeBtn').onclick=()=>{
+ outside=false;player={x:0,z:4};draw();notice('Welcome home!');
+};
+document.getElementById('yardBtn').onclick=()=>{
+ outside=true;player={x:0,z:90};draw();notice('You are in your yard!');
+};
+
+// Furniture shop
+const shop=document.getElementById('shop');
+document.getElementById('buy').onclick=()=>{
+ const list=document.getElementById('items');list.innerHTML='';
+ products.forEach(p=>{
+  const d=document.createElement('div');d.className='item';
+  d.innerHTML=`<div style="font-size:28px">${p[0]}</div><b>${p[1]}</b><p>₦${p[2].toLocaleString('en-NG')}</p><button>BUY</button>`;
+  d.querySelector('button').onclick=()=>{
+   if(money<p[2]){notice('Not enough money!');return}
+   money-=p[2];moneyUI();placeItem=p;
+   shop.style.display='none';notice('Tap inside the house to place '+p[1]);
+  };
+  list.appendChild(d);
+ });
+ shop.style.display='flex';
+};
+document.getElementById('closeShop').onclick=()=>shop.style.display='none';
+
+canvas.addEventListener('pointerdown',e=>{
+ if(!placeItem)return;
+ const x=e.clientX,y=e.clientY;
+ if(y<H*.32||y>H*.79){notice('Tap the house floor to place it');return}
+ const sx=Math.min(W/420,H/650,1.1);
+ const cx=W/2,cy=H*.54;
+ const px=(x-cx)/sx,pz=(y-cy)/sx;
+ if(Math.abs(px)>160||Math.abs(pz)>105){notice('Place it inside the house');return}
+ furniture.push({emoji:placeItem[0],name:placeItem[1],x:px,z:pz});
+ notice(placeItem[1]+' placed!');
+ placeItem=null;draw();
+});
+
+// Phone and apps
+const phone=document.getElementById('phone');
+const phoneHome=document.getElementById('phoneHome');
+const appScreen=document.getElementById('appScreen');
+document.getElementById('phoneBtn').onclick=()=>{
+ phone.style.display='flex';showHome();
+};
+document.getElementById('closePhone').onclick=()=>phone.style.display='none';
+document.getElementById('phoneHomeBtn').onclick=showHome;
+document.getElementById('back').onclick=showHome;
+function showHome(){
+ phoneHome.style.display='block';appScreen.style.display='none';
+}
+function appPage(title,html){
+ phoneHome.style.display='none';appScreen.style.display='block';
+ appScreen.innerHTML='<h3>'+title+'</h3>'+html+
+ '<button id="appBack">← Back to apps</button>';
+ document.getElementById('appBack').onclick=showHome;
+}
+document.querySelectorAll('.app').forEach(b=>b.onclick=()=>openApp(b.dataset.app));
+
+function openApp(app){
+ if(app==='messages'){
+  appPage('💬 Messages',`
+  <p>Game contacts</p><button id="tunde">Tunde</button><button id="amaka">Amaka</button>
+  <div id="chat"><p>Choose a contact.</p></div>`);
+  function chat(name){
+   document.getElementById('chat').innerHTML=
+   '<p>Chat with '+name+'</p><div id="msgs"> '+name+': Welcome to Lagos!</div><input id="msg" placeholder="Write a message"><button id="send">Send</button>';
+   document.getElementById('send').onclick=()=>{
+    let v=document.getElementById('msg');
+    if(v.value.trim()){
+     let p=document.createElement('p');p.textContent='You: '+v.value;
+     document.getElementById('msgs').appendChild(p);v.value='';
+    }
+   };
+  }
+  document.getElementById('tunde').onclick=()=>chat('Tunde');
+  document.getElementById('amaka').onclick=()=>chat('Amaka');
+ }
+ if(app==='calculator'){
+  appPage('🧮 Calculator','<div id="display" style="font-size:25px;background:#dce7e7;padding:14px">0</div><div id="calc" style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px"></div>');
+  let expr='';const display=document.getElementById('display');
+  ['7','8','9','÷','4','5','6','×','1','2','3','−','C','0','=','+'].forEach(k=>{
+   let b=document.createElement('button');b.textContent=k;document.getElementById('calc').appendChild(b);
+   b.onclick=()=>{
+    if(k==='C'){expr='';display.textContent='0';return}
+    if(k==='='){
+     try{
+      let safe=expr.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');
+      if(!/^[0-9+*/. -]+$/.test(safe))throw Error();
+      let answer=Function('return ('+safe+')')();
+      if(!Number.isFinite(answer))throw Error();
+      expr=String(answer);display.textContent=expr;
+     }catch{expr='';display.textContent='Error'}
+    }else{expr+=k;display.textContent=expr}
+   };
+  });
+ }
+ if(app==='notes'){
+  appPage('📝 Notes','<textarea id="noteText" placeholder="Write your notes..."></textarea><button id="saveNote">Save Notes</button><p id="noteStatus"></p>');
+  const n=document.getElementById('noteText');
+  n.value=localStorage.getItem('lagosNotes')||'';
+  document.getElementById('saveNote').onclick=()=>{
+   localStorage.setItem('lagosNotes',n.value);
+   document.getElementById('noteStatus').textContent='Saved on this device ✓';
+  };
+ }
+ if(app==='map'){
+  appPage('🗺️ Lagos Map',`
+  <div style="height:220px;background:#c8dfbd;border-radius:12px;position:relative">
+   <div style="position:absolute;background:#888;width:130%;height:18px;top:45%;transform:rotate(-20deg)"></div>
+   <div style="position:absolute;background:#aaa;width:130%;height:15px;top:25%;transform:rotate(40deg)"></div>
+   <span style="position:absolute;top:45%;left:45%;font-size:28px">🏠</span>
+   <span style="position:absolute;top:12%;left:18%;font-size:24px">🛍️</span>
+   <span style="position:absolute;top:70%;left:75%;font-size:24px">🌳</span>
+  </div><p>🏠 Home · 🛍️ Shops · 🌳 Park</p>
+  <button id="mapHome">Go Home</button><button id="mapYard">Go Yard</button>`);
+  document.getElementById('mapHome').onclick=()=>{player={x:0,z:4};draw();phone.style.display='none'};
+  document.getElementById('mapYard').onclick=()=>{player={x:0,z:90};draw();phone.style.display='none'};
+ }
+ if(app==='calendar'){
+  appPage('📅 Calendar','<h3>'+new Date().toLocaleDateString(undefined,{month:'long',year:'numeric'})+'</h3><p>Today: '+new Date().toLocaleDateString()+'</p><input id="reminder" placeholder="Write a reminder"><button id="saveReminder">Save reminder</button><p id="reminderStatus"></p>');
+  document.getElementById('reminder').value=localStorage.getItem('lagosReminder')||'';
+  document.getElementById('saveReminder').onclick=()=>{
+   let v=document.getElementById('reminder').value;
+   localStorage.setItem('lagosReminder',v);
+   document.getElementById('reminderStatus').textContent='Reminder saved!';
+  };
+ }
+ if(app==='settings'){
+  appPage('⚙️ Settings','<p>Game settings</p><button id="clearNotes">Clear saved notes</button><p id="settingsStatus"></p>');
+  document.getElementById('clearNotes').onclick=()=>{
+   localStorage.removeItem('lagosNotes');
+   document.getElementById('settingsStatus').textContent='Notes cleared.';
+  };
+ }
+}
+function updateClock(){
+ let d=new Date();
+ document.getElementById('clock').textContent=d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+ document.getElementById('date').textContent=d.toLocaleDateString([],{weekday:'long',month:'long',day:'numeric'});
+}
+updateClock();setInterval(updateClock,15000);
+resize();
+</script>
+</body>
+</html>
